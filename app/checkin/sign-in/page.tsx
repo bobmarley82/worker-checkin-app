@@ -61,7 +61,7 @@ async function submitSignIn(formData: FormData) {
 
   const supabase = await createClient();
 
-  await autoSignOutStaleCheckins();
+  //await autoSignOutStaleCheckins();
 
   const workerName = normalizeWorkerName(
     String(formData.get("worker_name") ?? "")
