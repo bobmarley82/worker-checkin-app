@@ -307,6 +307,14 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             </div>
 
             <SubmitButton />
+            <div className="mt-4">
+            <Link
+              href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}
+              className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
+            >
+              Back
+            </Link>
+          </div>
           </form>
         )}
       </div>

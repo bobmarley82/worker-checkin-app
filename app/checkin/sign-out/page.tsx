@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import SubmitButton from "../SubmitButton";
 import SignatureField from "../SignatureField";
 import WorkerNameInput from "../WorkerNameInput";
-import { revalidatePath } from "next/cache";
 
 type SignOutPageProps = {
   searchParams: Promise<{
@@ -26,51 +26,13 @@ function normalizeWorkerName(value: string) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function normalizeForMatch(value: string) {
-  return value.trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-async function autoSignOutStaleCheckins() {
-  const supabase = await createClient();
-
-  const cutoff = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
-
-  const { data: staleRows } = await supabase
-    .from("checkins")
-    .select("id, signed_at")
-    .is("signed_out_at", null)
-    .lte("signed_at", cutoff);
-
-  if (!staleRows?.length) return;
-
-  for (const row of staleRows) {
-    const signedAt = row.signed_at;
-    if (!signedAt) continue;
-
-    const autoOutAt = new Date(
-      new Date(signedAt).getTime() + 12 * 60 * 60 * 1000
-    ).toISOString();
-
-    await supabase
-      .from("checkins")
-      .update({
-        signed_out_at: autoOutAt,
-        auto_signed_out: true,
-      })
-      .eq("id", row.id);
-  }
-}
-
 async function submitSignOut(formData: FormData) {
   "use server";
 
   const supabase = await createClient();
 
-  //await autoSignOutStaleCheckins();
-
   const rawWorkerName = String(formData.get("worker_name") ?? "");
   const workerName = normalizeWorkerName(rawWorkerName);
-  const workerNameForMatch = normalizeForMatch(rawWorkerName);
 
   const jobId = String(formData.get("job_id") ?? "").trim();
   const jobName = String(formData.get("job_name") ?? "").trim();
@@ -102,71 +64,30 @@ async function submitSignOut(formData: FormData) {
     );
   }
 
-  const { data: openCheckins, error: openCheckinsError } = await supabase
-  .from("checkins")
-  .select("id, worker_name, signed_at")
-  .eq("job_id", jobId)
-  .is("signed_out_at", null)
-  .order("signed_at", { ascending: false });
+  const { error } = await supabase.rpc("sign_out_worker", {
+    p_job_id: jobId,
+    p_worker_name: rawWorkerName,
+    p_injured: injured,
+    p_signout_signature_data: signoutSignatureData,
+  });
 
-if (openCheckinsError) {
-  redirect(
-    `/checkin/sign-out?error=${encodeURIComponent(
-      openCheckinsError.message
-    )}&job=${encodeURIComponent(jobId)}`
-  );
-}
+  if (error) {
+    redirect(
+      `/checkin/sign-out?error=${encodeURIComponent(error.message)}&job=${encodeURIComponent(
+        jobId
+      )}`
+    );
+  }
 
-const matchingOpenCheckins =
-  openCheckins?.filter(
-    (checkin) =>
-      normalizeForMatch(checkin.worker_name ?? "") === workerNameForMatch
-  ) ?? [];
-
-if (matchingOpenCheckins.length === 0) {
-  redirect(
-    `/checkin/sign-out?error=${encodeURIComponent(
-      "No active sign-in found for this worker on this job."
-    )}&job=${encodeURIComponent(jobId)}`
-  );
-}
-
-// Because results are already ordered newest first by signed_at,
-// the first exact match is the newest open row for that worker/job.
-const newestOpenCheckin = matchingOpenCheckins[0];
-
-const signedOutAt = new Date().toISOString();
-
-const { error } = await supabase
-  .from("checkins")
-  .update({
-    signed_out_at: signedOutAt,
-    injured,
-    auto_signed_out: false,
-    signout_signature_data: signoutSignatureData,
-  })
-  .eq("id", newestOpenCheckin.id)
-  .is("signed_out_at", null);
-
-if (error) {
-  redirect(
-    `/checkin/sign-out?error=${encodeURIComponent(error.message)}&job=${encodeURIComponent(
-      jobId
-    )}`
-  );
-}
-
-
-// refresh admin pages
-revalidatePath("/admin/records");
-revalidatePath("/admin/jobs");
+  revalidatePath("/admin/records");
+  revalidatePath("/admin/jobs");
 
   const params = new URLSearchParams({
     success: "1",
     worker_name: workerName,
     job_name: jobName,
     injured: injured ? "Yes" : "No",
-    date: signedOutAt,
+    date: new Date().toISOString(),
     job: jobId,
   });
 
@@ -221,7 +142,9 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
             </Link>
 
             <Link
-              href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}
+              href={
+                preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"
+              }
               className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
             >
               Back
@@ -235,8 +158,16 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
   const supabase = await createClient();
 
   const [{ data: jobs, error }, { data: workers }] = await Promise.all([
-    supabase.from("jobs").select("id, name").eq("is_active", true).order("name"),
-    supabase.from("workers").select("name").eq("is_active", true).order("name"),
+    supabase
+      .from("jobs")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name"),
+    supabase
+      .from("workers")
+      .select("name")
+      .eq("is_active", true)
+      .order("name"),
   ]);
 
   const workerNames = workers?.map((worker) => worker.name) ?? [];
@@ -324,6 +255,14 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
             </div>
 
             <SubmitButton />
+            <div className="mt-4">
+            <Link
+              href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}
+              className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
+            >
+              Back
+            </Link>
+          </div>
           </form>
         )}
       </div>

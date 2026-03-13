@@ -66,80 +66,92 @@ export type Database = {
         ];
       };
 
-checkins: {
-  Row: {
-    id: string;
-    worker_name: string;
-    job_id: string;
-    checkin_date: string;
-    injured: boolean;
-    signature_data: string;
-    signed_at: string | null;
-    signed_out_at: string | null;
-    auto_signed_out: boolean;
-    created_at: string | null;
-  };
-  Insert: {
-    id?: string;
-    worker_name: string;
-    job_id: string;
-    checkin_date: string;
-    injured?: boolean;
-    signature_data: string;
-    signed_at?: string | null;
-    signed_out_at?: string | null;
-    auto_signed_out?: boolean;
-    created_at?: string | null;
-  };
-  Update: {
-    id?: string;
-    worker_name?: string;
-    job_id?: string;
-    checkin_date?: string;
-    injured?: boolean;
-    signature_data?: string;
-    signed_at?: string | null;
-    signed_out_at?: string | null;
-    auto_signed_out?: boolean;
-    created_at?: string | null;
-  };
-  Relationships: [
-    {
-      foreignKeyName: "checkins_job_id_fkey";
-      columns: ["job_id"];
-      referencedRelation: "jobs";
-      referencedColumns: ["id"];
-    }
-  ];
-};
+      checkins: {
+        Row: {
+          id: string;
+          worker_name: string;
+          job_id: string;
+          checkin_date: string;
+          injured: boolean;
+          signature_data: string;
+          signout_signature_data: string | null;
+          signed_at: string | null;
+          signed_out_at: string | null;
+          auto_signed_out: boolean;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          worker_name: string;
+          job_id: string;
+          checkin_date: string;
+          injured?: boolean;
+          signature_data: string;
+          signout_signature_data?: string | null;
+          signed_at?: string | null;
+          signed_out_at?: string | null;
+          auto_signed_out?: boolean;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          worker_name?: string;
+          job_id?: string;
+          checkin_date?: string;
+          injured?: boolean;
+          signature_data?: string;
+          signout_signature_data?: string | null;
+          signed_at?: string | null;
+          signed_out_at?: string | null;
+          auto_signed_out?: boolean;
+          created_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "checkins_job_id_fkey";
+            columns: ["job_id"];
+            referencedRelation: "jobs";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
 
-workers: {
-  Row: {
-    id: string;
-    name: string;
-    is_active: boolean;
-    created_at: string;
-  };
-  Insert: {
-    id?: string;
-    name: string;
-    is_active?: boolean;
-    created_at?: string;
-  };
-  Update: {
-    id?: string;
-    name?: string;
-    is_active?: boolean;
-    created_at?: string;
-  };
-  Relationships: [];
-};
-
+      workers: {
+        Row: {
+          id: string;
+          name: string;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
 
     Views: {};
 
-    Functions: {};
+    Functions: {
+      sign_out_worker: {
+        Args: {
+          p_job_id: string;
+          p_worker_name: string;
+          p_injured: boolean;
+          p_signout_signature_data: string;
+        };
+        Returns: string;
+      };
+    };
 
     Enums: {};
 
