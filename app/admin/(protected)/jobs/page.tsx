@@ -140,7 +140,7 @@ export default async function AdminJobsPage() {
     .order("created_at", { ascending: false });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA");
 
   const { data: todaysCheckins, error: todaysCheckinsError } = await supabase
     .from("checkins")
@@ -169,6 +169,12 @@ export default async function AdminJobsPage() {
 
   return (
     <div className="space-y-6">
+          {isSuperAdmin ? (
+      <div className="rounded-2xl bg-white p-6 shadow">
+        <h2 className="text-lg font-semibold">Add Job</h2>
+        <AddJobForm action={addJob} />
+      </div>
+    ) : null}
 {isSuperAdmin && (
   <div className="rounded-2xl bg-white p-6 shadow">
     <div className="flex flex-wrap items-center justify-between gap-4">

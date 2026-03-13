@@ -112,7 +112,7 @@ async function submitSignIn(formData: FormData) {
     );
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toLocaleDateString("en-CA");
 
   const { error } = await supabase.from("checkins").insert({
     worker_name: workerName,

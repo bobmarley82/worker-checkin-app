@@ -23,7 +23,7 @@ function formatDateTime(dateString: string | null) {
 }
 
 function toYmd(date: Date) {
-  return date.toISOString().split("T")[0];
+  return date.toLocaleDateString("en-CA");
 }
 
 function addDays(base: Date, days: number) {
