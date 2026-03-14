@@ -38,6 +38,7 @@ export type Database = {
         Row: {
           id: string;
           name: string;
+          job_number: string | null;
           is_active: boolean;
           created_by: string | null;
           created_at: string | null;
@@ -45,6 +46,7 @@ export type Database = {
         Insert: {
           id?: string;
           name: string;
+          job_number?: string | null;
           is_active?: boolean;
           created_by?: string | null;
           created_at?: string | null;
@@ -52,6 +54,7 @@ export type Database = {
         Update: {
           id?: string;
           name?: string;
+          job_number?: string | null;
           is_active?: boolean;
           created_by?: string | null;
           created_at?: string | null;
@@ -71,6 +74,8 @@ export type Database = {
           id: string;
           worker_name: string;
           job_id: string;
+          job_name: string | null;
+          job_number: string | null;
           checkin_date: string;
           injured: boolean;
           signature_data: string;
@@ -84,6 +89,8 @@ export type Database = {
           id?: string;
           worker_name: string;
           job_id: string;
+          job_name?: string | null;
+          job_number?: string | null;
           checkin_date: string;
           injured?: boolean;
           signature_data: string;
@@ -97,6 +104,8 @@ export type Database = {
           id?: string;
           worker_name?: string;
           job_id?: string;
+          job_name?: string | null;
+          job_number?: string | null;
           checkin_date?: string;
           injured?: boolean;
           signature_data?: string;

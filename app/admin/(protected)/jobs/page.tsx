@@ -18,23 +18,39 @@ async function addJob(prevState: any, formData: FormData) {
   } = await supabase.auth.getUser();
 
   const name = String(formData.get("name") ?? "").trim();
+  const jobNumber = String(formData.get("job_number") ?? "").trim();
 
   if (!name) {
     return { error: "Job name is required." };
   }
 
-  const { data: existing } = await supabase
+  if (!jobNumber) {
+    return { error: "Job number is required." };
+  }
+
+  const { data: existingName } = await supabase
     .from("jobs")
     .select("id")
     .ilike("name", name)
     .limit(1);
 
-  if (existing?.length) {
+  if (existingName?.length) {
     return { error: "Job already exists." };
+  }
+
+  const { data: existingJobNumber } = await supabase
+    .from("jobs")
+    .select("id")
+    .eq("job_number", jobNumber)
+    .limit(1);
+
+  if (existingJobNumber?.length) {
+    return { error: "Job number already exists." };
   }
 
   const { error } = await supabase.from("jobs").insert({
     name,
+    job_number: jobNumber,
     is_active: true,
     created_by: user?.id,
   });
@@ -136,7 +152,7 @@ export default async function AdminJobsPage() {
 
   const { data: jobs, error } = await supabase
     .from("jobs")
-    .select("id, name, is_active, created_at")
+    .select("id, name, job_number, is_active, created_at")
     .order("created_at", { ascending: false });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -169,31 +185,32 @@ export default async function AdminJobsPage() {
 
   return (
     <div className="space-y-6">
-          {isSuperAdmin ? (
-      <div className="rounded-2xl bg-white p-6 shadow">
-        <h2 className="text-lg font-semibold">Add Job</h2>
-        <AddJobForm action={addJob} />
-      </div>
-    ) : null}
-{isSuperAdmin && (
-  <div className="rounded-2xl bg-white p-6 shadow">
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <h2 className="text-lg font-semibold">QR Printing</h2>
-        <p className="mt-2 text-gray-800">
-          Print QR sheets for one job or multiple jobs at once.
-        </p>
-      </div>
+      {isSuperAdmin ? (
+        <div className="rounded-2xl bg-white p-6 shadow">
+          <h2 className="text-lg font-semibold">Add Job</h2>
+          <AddJobForm action={addJob} />
+        </div>
+      ) : null}
 
-      <Link
-        href="/admin/jobs/print"
-        className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
-      >
-        Bulk Print QR Codes
-      </Link>
-    </div>
-  </div>
-)}
+      {isSuperAdmin && (
+        <div className="rounded-2xl bg-white p-6 shadow">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">QR Printing</h2>
+              <p className="mt-2 text-gray-800">
+                Print QR sheets for one job or multiple jobs at once.
+              </p>
+            </div>
+
+            <Link
+              href="/admin/jobs/print"
+              className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
+            >
+              Bulk Print QR Codes
+            </Link>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl bg-white p-6 shadow">
         <h2 className="text-lg font-semibold">Today&apos;s Activity</h2>
@@ -230,7 +247,10 @@ export default async function AdminJobsPage() {
                       href={`/admin/jobs/${job.id}`}
                       className="rounded-xl border border-gray-200 bg-gray-50 p-4 transition hover:bg-gray-100"
                     >
-                      <p className="text-sm text-gray-800">{job.name}</p>
+                      <p className="text-xs text-gray-600">
+                        Job #{job.job_number ?? "-"}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-800">{job.name}</p>
                       <p className="mt-1 text-2xl font-bold">{todayCount}</p>
                       <p className="mt-1 text-xs text-gray-700">
                         worker{todayCount === 1 ? "" : "s"} checked in today
@@ -256,6 +276,7 @@ export default async function AdminJobsPage() {
             <table className="min-w-full border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-sm text-gray-700">
+                  <th className="px-4 py-3 font-semibold">Job #</th>
                   <th className="px-4 py-3 font-semibold">Job Name</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 font-semibold">QR</th>
@@ -272,6 +293,10 @@ export default async function AdminJobsPage() {
 
                   return (
                     <tr key={job.id} className="border-b border-gray-100 text-sm">
+                      <td className="px-4 py-3 text-gray-900">
+                        {job.job_number ?? "-"}
+                      </td>
+
                       <td className="px-4 py-3 font-medium text-gray-900">
                         <Link
                           href={`/admin/jobs/${job.id}`}

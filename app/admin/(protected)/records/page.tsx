@@ -94,7 +94,7 @@ export default async function AdminRecordsPage({
 
   const { data: jobs, error: jobsError } = await supabase
     .from("jobs")
-    .select("id, name, is_active")
+    .select("id, name, job_number, is_active")
     .order("name");
 
   let checkinsQuery = supabase
@@ -104,6 +104,8 @@ export default async function AdminRecordsPage({
       id,
       worker_name,
       job_id,
+      job_name,
+      job_number,
       checkin_date,
       injured,
       signed_at,
@@ -111,7 +113,8 @@ export default async function AdminRecordsPage({
       auto_signed_out,
       signature_data,
       jobs (
-        name
+        name,
+        job_number
       )
     `
     )
@@ -467,9 +470,17 @@ export default async function AdminRecordsPage({
               </thead>
               <tbody>
                 {checkins.map((checkin, index) => {
-                  const jobName = Array.isArray(checkin.jobs)
-                    ? checkin.jobs[0]?.name ?? "-"
-                    : checkin.jobs?.name ?? "-";
+                const relatedJob = Array.isArray(checkin.jobs)
+                  ? checkin.jobs[0]
+                  : checkin.jobs;
+
+                const relatedJobName = relatedJob?.name;
+                const relatedJobNumber = relatedJob?.job_number;
+
+                const jobName = relatedJobName ?? checkin.job_name ?? "-";
+                const jobDisplay = relatedJobNumber
+                  ? `${relatedJobNumber} - ${jobName}`
+                  : jobName;
 
                   return (
                     <tr
@@ -491,7 +502,7 @@ export default async function AdminRecordsPage({
                         {checkin.worker_name}
                       </td>
 
-                      <td className="px-4 py-3 text-gray-900">{jobName}</td>
+                      <td className="px-4 py-3 text-gray-900">{jobDisplay}</td>
 
                       <td className="px-4 py-3 text-gray-900">
                         {formatDate(checkin.checkin_date)}

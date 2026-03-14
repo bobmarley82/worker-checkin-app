@@ -45,7 +45,7 @@ export default async function CheckinChoicePage({
         <div className="mt-6 space-y-3">
           <Link
             href={jobId ? `/checkin/sign-in?job=${jobId}` : "/checkin/sign-in"}
-            className="block w-full rounded-lg border bg-green-500 px-4 py-3 text-center text-white hover:opacity-90"
+            className="block w-full rounded-lg bg-green-300 border px-4 py-3 text-center text-white hover:opacity-90"
           >
             Sign In
           </Link>
@@ -55,6 +55,13 @@ export default async function CheckinChoicePage({
             className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
           >
             Sign Out
+          </Link>
+
+          <Link
+            href="/"
+            className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
+          >
+            Go Back
           </Link>
         </div>
       </div>

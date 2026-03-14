@@ -28,7 +28,9 @@ export async function GET(request: Request) {
     .from("checkins")
     .select(`
       worker_name,
+      job_id,
       checkin_date,
+      job_name,
       injured,
       signed_at,
       signed_out_at,
@@ -62,21 +64,26 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-const rows = checkins?.map((row) => ({
-  Worker: row.worker_name,
-  Job: Array.isArray(row.jobs)
-    ? row.jobs[0]?.name ?? ""
-    : row.jobs?.name ?? "",
-  "Check-In Date": row.checkin_date,
-  "Signed In": row.signed_at
-    ? new Date(row.signed_at).toLocaleString()
-    : "",
-  "Signed Out": row.signed_out_at
-    ? new Date(row.signed_out_at).toLocaleString()
-    : "Open",
-  "Auto Signed Out": row.auto_signed_out ? "Yes" : "No",
-  Injured: row.injured ? "Yes" : "No",
-}));
+  const rows =
+    checkins?.map((row) => {
+      const relatedJobName = Array.isArray(row.jobs)
+        ? row.jobs[0]?.name
+        : row.jobs?.name;
+
+      const jobName = relatedJobName ?? row.job_name ?? "";
+
+      return {
+        Worker: row.worker_name,
+        Job: jobName,
+        "Check-In Date": formatDate(row.checkin_date),
+        "Signed In": formatDateTime(row.signed_at),
+        "Signed Out": row.signed_out_at
+          ? formatDateTime(row.signed_out_at)
+          : "Open",
+        "Auto Signed Out": row.auto_signed_out ? "Yes" : "No",
+        Injured: row.injured ? "Yes" : "No",
+      };
+    }) ?? [];
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
   const workbook = XLSX.utils.book_new();

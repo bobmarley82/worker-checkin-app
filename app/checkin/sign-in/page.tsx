@@ -114,14 +114,15 @@ async function submitSignIn(formData: FormData) {
 
   const today = new Date().toLocaleDateString("en-CA");
 
-  const { error } = await supabase.from("checkins").insert({
-    worker_name: workerName,
-    job_id: jobId,
-    checkin_date: today,
-    injured,
-    signature_data: signatureData,
-    auto_signed_out: false,
-  });
+const { error } = await supabase.from("checkins").insert({
+  worker_name: workerName,
+  job_id: jobId,
+  job_name: jobName,
+  checkin_date: today,
+  injured,
+  signature_data: signatureData,
+  auto_signed_out: false,
+});
 
   if (error) {
     redirect(

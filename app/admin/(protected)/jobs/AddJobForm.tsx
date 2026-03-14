@@ -20,6 +20,13 @@ export default function AddJobForm({
           className="flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
           required
         />
+          <input
+            type="text"
+            name="job_number"
+            placeholder="Job number"
+            className="rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+            required
+          />
 
         <button
           type="submit"
