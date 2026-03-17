@@ -88,7 +88,10 @@ export default async function JobDetailPage({
       worker_name,
       checkin_date,
       injured,
-      signed_at
+      signed_at,
+      signed_out_at,
+      auto_signed_out,
+      signature_data
     `)
     .eq("job_id", job.id)
     .gte("checkin_date", normalizedStartDate)
@@ -319,6 +322,9 @@ export default async function JobDetailPage({
                   <th className="px-4 py-3 font-semibold">Date</th>
                   <th className="px-4 py-3 font-semibold">Injured</th>
                   <th className="px-4 py-3 font-semibold">Signed At</th>
+                  <th className="px-4 py-3 font-semibold">Signed In</th>
+                  <th className="px-4 py-3 font-semibold">Signed Out</th>
+                  <th className="px-4 py-3 font-semibold">Signature</th>
                 </tr>
               </thead>
               <tbody>
