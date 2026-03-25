@@ -1,16 +1,5 @@
 const APP_TIME_ZONE = "America/Los_Angeles";
 
-export function formatDate(dateString: string | null) {
-  if (!dateString) return "-";
-
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-  }).format(new Date(dateString));
-}
-
 export function formatDateTime(dateString: string | null) {
   if (!dateString) return "-";
 
@@ -22,6 +11,13 @@ export function formatDateTime(dateString: string | null) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(dateString));
+}
+
+export function formatYmd(ymd: string | null) {
+  if (!ymd) return "-";
+
+  const [year, month, day] = ymd.split("-").map(Number);
+  return `${month}/${day}/${year}`;
 }
 
 export function toYmd(date: Date = new Date()) {
@@ -39,40 +35,24 @@ export function toYmd(date: Date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
-
-
-export function formatYmd(ymd: string | null) {
-  if (!ymd) return "-";
-
-  const [year, month, day] = ymd.split("-").map(Number);
-  const localDate = new Date(year, month - 1, day);
-
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-  }).format(localDate);
-}
-
-export function addDaysInLocalYmd(base: Date, days: number) {
-  const shifted = new Date(base);
-  shifted.setDate(shifted.getDate() + days);
-  return toYmd(shifted);
-}
-
 export function getTodayYmd() {
   return toYmd(new Date());
 }
 
+export function getRelativeYmd(daysFromToday: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromToday);
+  return toYmd(date);
+}
+
 export function getYesterdayYmd() {
-  return addDaysInLocalYmd(new Date(), -1);
+  return getRelativeYmd(-1);
 }
 
 export function getLast7DaysStartYmd() {
-  return addDaysInLocalYmd(new Date(), -6);
+  return getRelativeYmd(-6);
 }
 
 export function getLast30DaysStartYmd() {
-  return addDaysInLocalYmd(new Date(), -29);
+  return getRelativeYmd(-29);
 }
