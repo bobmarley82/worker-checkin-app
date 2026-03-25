@@ -307,7 +307,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
               </div>
             </div>
 
-            <SubmitButton />
+            <SubmitButton label="Sign-In" variant="checkin" />
             <div className="mt-4">
             <Link
               href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}

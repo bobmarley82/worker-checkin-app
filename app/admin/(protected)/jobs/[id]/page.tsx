@@ -321,7 +321,6 @@ export default async function JobDetailPage({
                   <th className="px-4 py-3 font-semibold">Worker</th>
                   <th className="px-4 py-3 font-semibold">Date</th>
                   <th className="px-4 py-3 font-semibold">Injured</th>
-                  <th className="px-4 py-3 font-semibold">Signed At</th>
                   <th className="px-4 py-3 font-semibold">Signed In</th>
                   <th className="px-4 py-3 font-semibold">Signed Out</th>
                   <th className="px-4 py-3 font-semibold">Signature</th>
@@ -330,30 +329,68 @@ export default async function JobDetailPage({
               <tbody>
                 {checkins.map((checkin) => (
                   <tr
-                    key={checkin.id}
-                    className="border-b border-gray-100 text-sm"
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {checkin.worker_name}
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {formatDate(checkin.checkin_date)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                          checkin.injured
-                            ? "bg-red-100 text-red-700"
-                            : "bg-green-100 text-green-700"
-                        }`}
-                      >
-                        {checkin.injured ? "Yes" : "No"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {formatDateTime(checkin.signed_at)}
-                    </td>
-                  </tr>
+  key={checkin.id}
+  className="border-b border-gray-100 text-sm"
+>
+  <td className="px-4 py-3 font-medium text-gray-900">
+    {checkin.worker_name}
+  </td>
+
+  <td className="px-4 py-3 text-gray-700">
+    {formatDate(checkin.checkin_date)}
+  </td>
+
+  <td className="px-4 py-3">
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+        checkin.injured
+          ? "bg-red-100 text-red-700"
+          : "bg-green-100 text-green-700"
+      }`}
+    >
+      {checkin.injured ? "Yes" : "No"}
+    </span>
+  </td>
+
+  {/* Signed In */}
+  <td className="px-4 py-3 text-gray-900">
+    {formatDateTime(checkin.signed_at)}
+  </td>
+
+  {/* Signed Out */}
+  <td className="px-4 py-3">
+    {checkin.signed_out_at ? (
+      <div className="space-y-1">
+        <div className="text-gray-900">
+          {formatDateTime(checkin.signed_out_at)}
+        </div>
+
+        {checkin.auto_signed_out ? (
+          <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+            Auto-signed out
+          </span>
+        ) : null}
+      </div>
+    ) : (
+      <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+        Open
+      </span>
+    )}
+  </td>
+
+  {/* Signature */}
+  <td className="px-4 py-3">
+    {checkin.signature_data ? (
+      <img
+        src={checkin.signature_data}
+        alt={`Signature for ${checkin.worker_name}`}
+        className="h-12 w-24 rounded border border-gray-200 bg-white object-contain"
+      />
+    ) : (
+      <span className="text-gray-400">-</span>
+    )}
+  </td>
+</tr>
                 ))}
               </tbody>
             </table>

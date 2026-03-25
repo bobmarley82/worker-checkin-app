@@ -254,7 +254,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
               </div>
             </div>
 
-            <SubmitButton />
+            <SubmitButton label="Sign-Out" variant="checkout" />
             <div className="mt-4">
             <Link
               href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}

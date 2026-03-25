@@ -23,7 +23,7 @@ export default async function JobQrPage({ params }: JobQrPageProps) {
     .eq("id", id)
     .single();
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://icbiconnect.vercel.app";
 
   if (error || !job) {
     return (
