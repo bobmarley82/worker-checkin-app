@@ -101,6 +101,19 @@ export default async function JobDetailPage({
     ? `${job.job_number} - ${job.name}`
     : job.name;
 
+  const exportParams = new URLSearchParams();
+
+  if (normalizedStartDate) {
+    exportParams.set("start_date", normalizedStartDate);
+  }
+
+  if (normalizedEndDate) {
+    exportParams.set("end_date", normalizedEndDate);
+  }
+
+  const exportHref = `/admin/jobs/${job.id}/export?${exportParams.toString()}`;
+
+
   return (
     <div className="space-y-6">
       <div className="rounded-2xl bg-white p-6 shadow">
@@ -200,6 +213,13 @@ export default async function JobDetailPage({
           >
             Last 30 Days
           </Link>
+
+          <Link
+          href={exportHref}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+        >
+          Export Excel
+        </Link>
         </div>
       </div>
 
