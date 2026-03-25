@@ -2,7 +2,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewerAdmin } from "@/lib/auth";
 
-
 type JobDetailPageProps = {
   params: Promise<{
     id: string;
@@ -37,7 +36,6 @@ function formatDateTime(dateString: string | null) {
   }).format(new Date(dateString));
 }
 
-
 function toYmd(date: Date) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: APP_TIME_ZONE,
@@ -57,7 +55,7 @@ export default async function JobDetailPage({
   params,
   searchParams,
 }: JobDetailPageProps) {
-  const profile = await requireViewerAdmin();
+  await requireViewerAdmin();
   const { id } = await params;
   const query = await searchParams;
 
@@ -65,15 +63,13 @@ export default async function JobDetailPage({
 
   const { data: job, error: jobError } = await supabase
     .from("jobs")
-    .select("id, name, is_active, created_at")
+    .select("id, name, job_number, is_active, created_at")
     .eq("id", id)
     .single();
 
   if (jobError || !job) {
     return (
       <div className="space-y-6">
-
-
         <div className="rounded-2xl bg-white p-6 shadow">
           <p className="text-red-600">Job not found.</p>
           <Link
@@ -126,13 +122,16 @@ export default async function JobDetailPage({
   const uniqueWorkers = new Set(
     checkins?.map((checkin) => checkin.worker_name) ?? []
   ).size;
+  const openCount =
+    checkins?.filter((checkin) => !checkin.signed_out_at).length ?? 0;
 
   const isSingleDay = normalizedStartDate === normalizedEndDate;
+  const jobDisplay = job.job_number
+    ? `${job.job_number} - ${job.name}`
+    : job.name;
 
   return (
     <div className="space-y-6">
-
-
       <div className="rounded-2xl bg-white p-6 shadow">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -143,7 +142,7 @@ export default async function JobDetailPage({
               Back to Jobs
             </Link>
 
-            <h1 className="mt-3 text-2xl font-bold">{job.name}</h1>
+            <h1 className="mt-3 text-2xl font-bold">{jobDisplay}</h1>
 
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <span
@@ -158,9 +157,7 @@ export default async function JobDetailPage({
 
               <span className="text-sm text-gray-500">
                 Created{" "}
-                {job.created_at
-                  ? new Date(job.created_at).toLocaleDateString()
-                  : "-"}
+                {job.created_at ? formatDate(job.created_at) : "-"}
               </span>
             </div>
           </div>
@@ -283,7 +280,7 @@ export default async function JobDetailPage({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-2xl bg-white p-6 shadow">
           <p className="text-sm text-gray-600">Total sign-ins</p>
           <p className="mt-2 text-3xl font-bold">{totalForRange}</p>
@@ -298,6 +295,11 @@ export default async function JobDetailPage({
           <p className="text-sm text-gray-600">Injured</p>
           <p className="mt-2 text-3xl font-bold">{injuredCount}</p>
         </div>
+
+        <div className="rounded-2xl bg-white p-6 shadow">
+          <p className="text-sm text-gray-600">Still signed in</p>
+          <p className="mt-2 text-3xl font-bold">{openCount}</p>
+        </div>
       </div>
 
       <div className="rounded-2xl bg-white p-6 shadow">
@@ -305,7 +307,7 @@ export default async function JobDetailPage({
         <p className="mt-2 text-sm text-gray-600">
           {isSingleDay ? (
             <>
-              Showing records for <span className="font-medium">{job.name}</span>{" "}
+              Showing records for <span className="font-medium">{jobDisplay}</span>{" "}
               on{" "}
               <span className="font-medium">
                 {formatDate(normalizedStartDate)}
@@ -314,7 +316,7 @@ export default async function JobDetailPage({
             </>
           ) : (
             <>
-              Showing records for <span className="font-medium">{job.name}</span>{" "}
+              Showing records for <span className="font-medium">{jobDisplay}</span>{" "}
               from{" "}
               <span className="font-medium">
                 {formatDate(normalizedStartDate)}
@@ -350,68 +352,65 @@ export default async function JobDetailPage({
               <tbody>
                 {checkins.map((checkin) => (
                   <tr
-  key={checkin.id}
-  className="border-b border-gray-100 text-sm"
->
-  <td className="px-4 py-3 font-medium text-gray-900">
-    {checkin.worker_name}
-  </td>
+                    key={checkin.id}
+                    className="border-b border-gray-100 text-sm"
+                  >
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {checkin.worker_name}
+                    </td>
 
-  <td className="px-4 py-3 text-gray-700">
-    {formatDate(checkin.checkin_date)}
-  </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {formatDate(checkin.checkin_date)}
+                    </td>
 
-  <td className="px-4 py-3">
-    <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-        checkin.injured
-          ? "bg-red-100 text-red-700"
-          : "bg-green-100 text-green-700"
-      }`}
-    >
-      {checkin.injured ? "Yes" : "No"}
-    </span>
-  </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                          checkin.injured
+                            ? "bg-red-100 text-red-700"
+                            : "bg-green-100 text-green-700"
+                        }`}
+                      >
+                        {checkin.injured ? "Yes" : "No"}
+                      </span>
+                    </td>
 
-  {/* Signed In */}
-  <td className="px-4 py-3 text-gray-900">
-    {formatDateTime(checkin.signed_at)}
-  </td>
+                    <td className="px-4 py-3 text-gray-900">
+                      {formatDateTime(checkin.signed_at)}
+                    </td>
 
-  {/* Signed Out */}
-  <td className="px-4 py-3">
-    {checkin.signed_out_at ? (
-      <div className="space-y-1">
-        <div className="text-gray-900">
-          {formatDateTime(checkin.signed_out_at)}
-        </div>
+                    <td className="px-4 py-3">
+                      {checkin.signed_out_at ? (
+                        <div className="space-y-1">
+                          <div className="text-gray-900">
+                            {formatDateTime(checkin.signed_out_at)}
+                          </div>
 
-        {checkin.auto_signed_out ? (
-          <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
-            Auto-signed out
-          </span>
-        ) : null}
-      </div>
-    ) : (
-      <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
-        Open
-      </span>
-    )}
-  </td>
+                          {checkin.auto_signed_out ? (
+                            <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                              Auto-signed out
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+                          Open
+                        </span>
+                      )}
+                    </td>
 
-  {/* Signature */}
-  <td className="px-4 py-3">
-    {checkin.signature_data ? (
-      <img
-        src={checkin.signature_data}
-        alt={`Signature for ${checkin.worker_name}`}
-        className="h-12 w-24 rounded border border-gray-200 bg-white object-contain"
-      />
-    ) : (
-      <span className="text-gray-400">-</span>
-    )}
-  </td>
-</tr>
+                    <td className="px-4 py-3">
+                      {checkin.signature_data ? (
+                        <img
+                          src={checkin.signature_data}
+                          alt={`Signature for ${checkin.worker_name}`}
+                          className="h-12 w-24 rounded border border-gray-200 bg-white object-contain"
+                        />
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>

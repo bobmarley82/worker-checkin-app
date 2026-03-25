@@ -37,7 +37,6 @@ function formatDateTime(dateString: string | null) {
   }).format(new Date(dateString));
 }
 
-
 function toYmd(date: Date) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: APP_TIME_ZONE,
@@ -116,7 +115,8 @@ export default async function AdminRecordsPage({
   const { data: jobs, error: jobsError } = await supabase
     .from("jobs")
     .select("id, name, job_number, is_active")
-    .order("name");
+    .order("job_number", { ascending: true })
+    .order("name", { ascending: true });
 
   let checkinsQuery = supabase
     .from("checkins")
@@ -160,13 +160,17 @@ export default async function AdminRecordsPage({
   ).size;
   const injuredCount =
     checkins?.filter((checkin) => checkin.injured).length ?? 0;
-
   const openCount =
     checkins?.filter((checkin) => !checkin.signed_out_at).length ?? 0;
 
   const isSingleDay = normalizedStartDate === normalizedEndDate;
-  const selectedJobName =
-    jobs?.find((job) => job.id === selectedJobId)?.name ?? "";
+
+  const selectedJob = jobs?.find((job) => job.id === selectedJobId);
+  const selectedJobName = selectedJob
+    ? selectedJob.job_number
+      ? `${selectedJob.job_number} - ${selectedJob.name}`
+      : selectedJob.name
+    : "";
 
   const rangeBase = `/admin/records`;
 
@@ -253,7 +257,7 @@ export default async function AdminRecordsPage({
                   <option value="">All Jobs</option>
                   {jobs?.map((job) => (
                     <option key={job.id} value={job.id}>
-                      {job.name}
+                      {job.job_number ? `${job.job_number} - ${job.name}` : job.name}
                       {!job.is_active ? " (Inactive)" : ""}
                     </option>
                   ))}
@@ -491,17 +495,18 @@ export default async function AdminRecordsPage({
               </thead>
               <tbody>
                 {checkins.map((checkin, index) => {
-                const relatedJob = Array.isArray(checkin.jobs)
-                  ? checkin.jobs[0]
-                  : checkin.jobs;
+                  const relatedJob = Array.isArray(checkin.jobs)
+                    ? checkin.jobs[0]
+                    : checkin.jobs;
 
-                const relatedJobName = relatedJob?.name;
-                const relatedJobNumber = relatedJob?.job_number;
+                  const relatedJobName = relatedJob?.name;
+                  const relatedJobNumber = relatedJob?.job_number;
 
-                const jobName = relatedJobName ?? checkin.job_name ?? "-";
-                const jobDisplay = relatedJobNumber
-                  ? `${relatedJobNumber} - ${jobName}`
-                  : jobName;
+                  const jobName = relatedJobName ?? checkin.job_name ?? "-";
+                  const jobNumber = relatedJobNumber ?? checkin.job_number ?? "";
+                  const jobDisplay = jobNumber
+                    ? `${jobNumber} - ${jobName}`
+                    : jobName;
 
                   return (
                     <tr
