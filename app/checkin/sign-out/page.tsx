@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -7,6 +8,7 @@ import SignatureField from "../SignatureField";
 import WorkerNameInput from "../WorkerNameInput";
 import { toYmd } from "@/lib/datetime";
 import { sendInjuryAlert } from "@/lib/sendInjuryAlert";
+export const dynamic = "force-dynamic";
 
 type SignOutPageProps = {
   searchParams: Promise<{

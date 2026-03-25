@@ -1,8 +1,11 @@
+
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewerAdmin, requireSuperAdmin } from "@/lib/auth";
 import DeleteCheckinButton from "./DeleteCheckinButton";
+
+export const dynamic = "force-dynamic";
 
 type AdminRecordsPageProps = {
   searchParams: Promise<{

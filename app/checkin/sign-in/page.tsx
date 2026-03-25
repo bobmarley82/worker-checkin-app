@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -6,6 +7,8 @@ import SubmitButton from "../SubmitButton";
 import WorkerNameInput from "../WorkerNameInput";
 import { toYmd } from "@/lib/datetime";
 import { sendInjuryAlert } from "@/lib/sendInjuryAlert";
+
+export const dynamic = "force-dynamic";
 
 type SignInPageProps = {
   searchParams: Promise<{

@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewerAdmin } from "@/lib/auth";
@@ -9,6 +10,8 @@ import {
   getLast7DaysStartYmd,
   getLast30DaysStartYmd,
 } from "@/lib/datetime";
+
+export const dynamic = "force-dynamic";
 
 type JobDetailPageProps = {
   params: Promise<{
