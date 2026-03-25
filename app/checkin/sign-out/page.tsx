@@ -8,6 +8,8 @@ import SignatureField from "../SignatureField";
 import WorkerNameInput from "../WorkerNameInput";
 import { toYmd } from "@/lib/datetime";
 import { sendInjuryAlert } from "@/lib/sendInjuryAlert";
+import GuardedForm from "../GuardedForm";
+
 export const dynamic = "force-dynamic";
 
 type SignOutPageProps = {
@@ -117,7 +119,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
   const errorMessage = params.error ?? "";
 
   if (isSuccess) {
-    return (
+    return (   
       <main className="min-h-screen bg-gray-50 p-6">
         <div className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow">
           <div className="text-center">
@@ -197,6 +199,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
 
   return (
     <main className="min-h-screen bg-gray-50 p-8">
+
       <div className="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow">
         <h1 className="text-2xl font-bold">Worker Sign Out</h1>
         <p className="mt-2 text-sm text-gray-800">
@@ -219,7 +222,13 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
         {error ? (
           <p className="mt-4 text-red-600">{error.message}</p>
         ) : (
-          <form id="sign-out-form" action={submitSignOut} className="mt-6 space-y-5">
+          <GuardedForm
+          id="sign-out-form"
+          action={submitSignOut}
+          className="mt-6 space-y-5"
+          confirmOnInjured
+        >
+
             <WorkerNameInput workers={workerNames} />
 
             <div>
@@ -285,7 +294,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
                 Back
               </Link>
             </div>
-          </form>
+          </GuardedForm>
         )}
       </div>
 
@@ -307,38 +316,3 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
     </main>
   );
 }
-
-<script
-  dangerouslySetInnerHTML={{
-    __html: `
-      document.addEventListener("change", function (e) {
-        const target = e.target;
-        if (target && target.id === "job_id") {
-          const select = target;
-          const hidden = document.getElementById("job_name");
-          const selectedText = select.options[select.selectedIndex]?.text || "";
-          if (hidden) hidden.value = selectedText;
-        }
-      });
-
-      document.addEventListener("submit", function (e) {
-        const form = e.target;
-        if (!(form instanceof HTMLFormElement)) return;
-        if (form.id !== "sign-out-form") return;
-
-        const injuredInput = form.querySelector('input[name="injured"]:checked');
-        const injuredValue = injuredInput ? injuredInput.value : "false";
-
-        if (injuredValue === "true") {
-          const confirmed = window.confirm(
-            "Are you sure you want to report an injury?"
-          );
-
-          if (!confirmed) {
-            e.preventDefault();
-          }
-        }
-      });
-    `,
-  }}
-/>

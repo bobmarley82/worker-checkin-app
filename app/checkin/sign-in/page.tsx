@@ -7,6 +7,7 @@ import SubmitButton from "../SubmitButton";
 import WorkerNameInput from "../WorkerNameInput";
 import { toYmd } from "@/lib/datetime";
 import { sendInjuryAlert } from "@/lib/sendInjuryAlert";
+import GuardedForm from "../GuardedForm";
 
 export const dynamic = "force-dynamic";
 
@@ -270,7 +271,12 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         {error ? (
           <p className="mt-4 text-red-600">{error.message}</p>
         ) : (
-          <form id="sign-in-form" action={submitSignIn} className="mt-6 space-y-5">
+          <GuardedForm
+          id="sign-in-form"
+          action={submitSignIn}
+          className="mt-6 space-y-5"
+          confirmOnInjured
+        >
             <WorkerNameInput workers={workerNames} />
 
             <div>
@@ -335,7 +341,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                 Back
               </Link>
             </div>
-          </form>
+          </GuardedForm>
         )}
       </div>
 
@@ -358,37 +364,3 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   );
 }
 
-<script
-  dangerouslySetInnerHTML={{
-    __html: `
-      document.addEventListener("change", function (e) {
-        const target = e.target;
-        if (target && target.id === "job_id") {
-          const select = target;
-          const hidden = document.getElementById("job_name");
-          const selectedText = select.options[select.selectedIndex]?.text || "";
-          if (hidden) hidden.value = selectedText;
-        }
-      });
-
-      document.addEventListener("submit", function (e) {
-        const form = e.target;
-        if (!(form instanceof HTMLFormElement)) return;
-        if (form.id !== "sign-in-form") return;
-
-        const injuredInput = form.querySelector('input[name="injured"]:checked');
-        const injuredValue = injuredInput ? injuredInput.value : "false";
-
-        if (injuredValue === "true") {
-          const confirmed = window.confirm(
-            "Are you sure you want to report an injury?"
-          );
-
-          if (!confirmed) {
-            e.preventDefault();
-          }
-        }
-      });
-    `,
-  }}
-/>
