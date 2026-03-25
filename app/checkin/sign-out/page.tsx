@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import SubmitButton from "../SubmitButton";
 import SignatureField from "../SignatureField";
 import WorkerNameInput from "../WorkerNameInput";
+import { toYmd } from "@/lib/datetime";
 
 type SignOutPageProps = {
   searchParams: Promise<{
@@ -82,12 +83,14 @@ async function submitSignOut(formData: FormData) {
   revalidatePath("/admin/records");
   revalidatePath("/admin/jobs");
 
+  const now = new Date();
+
   const params = new URLSearchParams({
     success: "1",
     worker_name: workerName,
     job_name: jobName,
     injured: injured ? "Yes" : "No",
-    date: new Date().toISOString(),
+    date: toYmd(now),
     job: jobId,
   });
 
@@ -130,6 +133,11 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
             <div>
               <span className="font-medium text-gray-900">Injured:</span>{" "}
               <span className="text-gray-900">{params.injured ?? "-"}</span>
+            </div>
+
+            <div>
+              <span className="font-medium text-gray-900">Date:</span>{" "}
+              <span className="text-gray-900">{params.date ?? "-"}</span>
             </div>
           </div>
 
@@ -255,14 +263,15 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
             </div>
 
             <SubmitButton label="Sign-Out" variant="checkout" />
+
             <div className="mt-4">
-            <Link
-              href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}
-              className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
-            >
-              Back
-            </Link>
-          </div>
+              <Link
+                href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}
+                className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
+              >
+                Back
+              </Link>
+            </div>
           </form>
         )}
       </div>

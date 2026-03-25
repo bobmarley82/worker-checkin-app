@@ -3,29 +3,14 @@ import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewerAdmin } from "@/lib/auth";
 
-const APP_TIME_ZONE = "America/Los_Angeles";
-
-function formatDate(dateString: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(dateString));
-}
-
-function formatDateTime(dateString: string | null) {
-  if (!dateString) return "-";
-
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(dateString));
-}
+import {
+  formatYmd,
+  formatDateTime,
+  getTodayYmd,
+  getYesterdayYmd,
+  getLast7DaysStartYmd,
+  getLast30DaysStartYmd,
+} from "@/lib/datetime";
 
 export async function GET(request: Request) {
   await requireViewerAdmin();
@@ -90,7 +75,7 @@ export async function GET(request: Request) {
       return {
         Worker: row.worker_name,
         Job: jobName,
-        "Check-In Date": formatDate(row.checkin_date),
+        "Check-In Date": formatYmd(row.checkin_date),
         "Signed In": formatDateTime(row.signed_at),
         "Signed Out": row.signed_out_at
           ? formatDateTime(row.signed_out_at)

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import SignatureField from "../SignatureField";
 import SubmitButton from "../SubmitButton";
 import WorkerNameInput from "../WorkerNameInput";
+import { toYmd } from "@/lib/datetime";
 
 type SignInPageProps = {
   searchParams: Promise<{
@@ -23,17 +24,6 @@ function normalizeWorkerName(value: string) {
     .replace(/\s+/g, " ")
     .toLowerCase()
     .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-const APP_TIME_ZONE = "America/Los_Angeles";
-
-function getLocalYmd() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: APP_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
 }
 
 async function autoSignOutStaleCheckins() {
@@ -72,7 +62,7 @@ async function submitSignIn(formData: FormData) {
 
   const supabase = await createClient();
 
-  //await autoSignOutStaleCheckins();
+  // await autoSignOutStaleCheckins();
 
   const workerName = normalizeWorkerName(
     String(formData.get("worker_name") ?? "")
@@ -123,17 +113,20 @@ async function submitSignIn(formData: FormData) {
     );
   }
 
-  const today = getLocalYmd();
+  const now = new Date();
+  const signedAt = now.toISOString();
+  const today = toYmd(now);
 
-const { error } = await supabase.from("checkins").insert({
-  worker_name: workerName,
-  job_id: jobId,
-  job_name: jobName,
-  checkin_date: today,
-  injured,
-  signature_data: signatureData,
-  auto_signed_out: false,
-});
+  const { error } = await supabase.from("checkins").insert({
+    worker_name: workerName,
+    job_id: jobId,
+    job_name: jobName,
+    checkin_date: today,
+    signed_at: signedAt,
+    injured,
+    signature_data: signatureData,
+    auto_signed_out: false,
+  });
 
   if (error) {
     redirect(
@@ -320,13 +313,13 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
             <SubmitButton label="Sign-In" variant="checkin" />
             <div className="mt-4">
-            <Link
-              href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}
-              className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
-            >
-              Back
-            </Link>
-          </div>
+              <Link
+                href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}
+                className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
+              >
+                Back
+              </Link>
+            </div>
           </form>
         )}
       </div>

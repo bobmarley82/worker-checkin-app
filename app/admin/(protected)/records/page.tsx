@@ -13,51 +13,14 @@ type AdminRecordsPageProps = {
   }>;
 };
 
-const APP_TIME_ZONE = "America/Los_Angeles";
-
-function formatDate(dateString: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(dateString));
-}
-
-function formatDateTime(dateString: string | null) {
-  if (!dateString) return "-";
-
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(dateString));
-}
-
-
-function toYmd(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-
-  return `${year}-${month}-${day}`;
-}
-
-function addDays(base: Date, days: number) {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d;
-}
+import {
+  formatYmd,
+  formatDateTime,
+  getTodayYmd,
+  getYesterdayYmd,
+  getLast7DaysStartYmd,
+  getLast30DaysStartYmd,
+} from "@/lib/datetime";
 
 async function deleteCheckin(
   prevState: { error?: string; success?: string },
@@ -80,10 +43,7 @@ async function deleteCheckin(
     return { error: "Type DELETE to confirm.", success: "" };
   }
 
-  const { error } = await supabase
-    .from("checkins")
-    .delete()
-    .eq("id", checkinId);
+  const { error } = await supabase.from("checkins").delete().eq("id", checkinId);
 
   if (error) {
     return { error: error.message, success: "" };
@@ -102,11 +62,10 @@ export default async function AdminRecordsPage({
   const query = await searchParams;
   const supabase = await createClient();
 
-  const todayDate = new Date();
-  const today = toYmd(todayDate);
-  const yesterday = toYmd(addDays(todayDate, -1));
-  const last7Start = toYmd(addDays(todayDate, -6));
-  const last30Start = toYmd(addDays(todayDate, -29));
+  const today = getTodayYmd();
+  const yesterday = getYesterdayYmd();
+  const last7Start = getLast7DaysStartYmd();
+  const last30Start = getLast30DaysStartYmd();
 
   const startDate =
     query.start_date && query.start_date.trim() ? query.start_date : today;
@@ -396,18 +355,18 @@ export default async function AdminRecordsPage({
                 <>
                   on{" "}
                   <span className="font-medium">
-                    {formatDate(normalizedStartDate)}
+                    {formatYmd(normalizedStartDate)}
                   </span>
                 </>
               ) : (
                 <>
                   from{" "}
                   <span className="font-medium">
-                    {formatDate(normalizedStartDate)}
+                    {formatYmd(normalizedStartDate)}
                   </span>{" "}
                   to{" "}
                   <span className="font-medium">
-                    {formatDate(normalizedEndDate)}
+                    {formatYmd(normalizedEndDate)}
                   </span>
                 </>
               )}
@@ -426,18 +385,18 @@ export default async function AdminRecordsPage({
                 <>
                   on{" "}
                   <span className="font-medium">
-                    {formatDate(normalizedStartDate)}
+                    {formatYmd(normalizedStartDate)}
                   </span>
                 </>
               ) : (
                 <>
                   from{" "}
                   <span className="font-medium">
-                    {formatDate(normalizedStartDate)}
+                    {formatYmd(normalizedStartDate)}
                   </span>{" "}
                   to{" "}
                   <span className="font-medium">
-                    {formatDate(normalizedEndDate)}
+                    {formatYmd(normalizedEndDate)}
                   </span>
                 </>
               )}
@@ -471,18 +430,14 @@ export default async function AdminRecordsPage({
 
       <div className="rounded-2xl bg-white p-6 shadow">
         <h2 className="text-lg font-semibold">Records</h2>
-        <p className="mt-2 text-gray-800">
-          Historical sign-ins across all jobs.
-        </p>
+        <p className="mt-2 text-gray-800">Historical sign-ins across all jobs.</p>
 
         {jobsError ? (
           <p className="mt-6 text-red-600">{jobsError.message}</p>
         ) : checkinsError ? (
           <p className="mt-6 text-red-600">{checkinsError.message}</p>
         ) : !checkins || checkins.length === 0 ? (
-          <p className="mt-6 text-gray-800">
-            No records found for this filter.
-          </p>
+          <p className="mt-6 text-gray-800">No records found for this filter.</p>
         ) : (
           <div className="mt-6 overflow-x-auto">
             <table className="min-w-full border-collapse">
@@ -538,7 +493,7 @@ export default async function AdminRecordsPage({
                       <td className="px-4 py-3 text-gray-900">{jobDisplay}</td>
 
                       <td className="px-4 py-3 text-gray-900">
-                        {formatDate(checkin.checkin_date)}
+                        {formatYmd(checkin.checkin_date)}
                       </td>
 
                       <td className="px-4 py-3">

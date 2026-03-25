@@ -9,29 +9,14 @@ type RouteContext = {
   }>;
 };
 
-const APP_TIME_ZONE = "America/Los_Angeles";
-
-function formatDate(dateString: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(dateString));
-}
-
-function formatDateTime(dateString: string | null) {
-  if (!dateString) return "-";
-
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(dateString));
-}
+import {
+  formatYmd,
+  formatDateTime,
+  getTodayYmd,
+  getYesterdayYmd,
+  getLast7DaysStartYmd,
+  getLast30DaysStartYmd,
+} from "@/lib/datetime";
 
 export async function GET(request: Request, context: RouteContext) {
   await requireViewerAdmin();
@@ -86,7 +71,7 @@ export async function GET(request: Request, context: RouteContext) {
   const rows = (checkins ?? []).map((checkin) => ({
     "Worker Name": checkin.worker_name,
     "Job": job.name,
-    "Check-In Date": formatDate(checkin.checkin_date),
+    "Check-In Date": formatYmd(checkin.checkin_date),
     "Signed At": formatDateTime(checkin.signed_at),
     "Injured": checkin.injured ? "Yes" : "No",
   }));

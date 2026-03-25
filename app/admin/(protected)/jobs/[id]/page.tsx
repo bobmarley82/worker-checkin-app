@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewerAdmin } from "@/lib/auth";
+import {
+  formatYmd,
+  formatDateTime,
+  getTodayYmd,
+  getYesterdayYmd,
+  getLast7DaysStartYmd,
+  getLast30DaysStartYmd,
+} from "@/lib/datetime";
 
 type JobDetailPageProps = {
   params: Promise<{
@@ -11,52 +19,6 @@ type JobDetailPageProps = {
     end_date?: string;
   }>;
 };
-
-const APP_TIME_ZONE = "America/Los_Angeles";
-
-function formatDate(dateString: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(dateString));
-}
-
-function formatDateTime(dateString: string | null) {
-  if (!dateString) return "-";
-
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(dateString));
-}
-
-
-function toYmd(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: APP_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-
-  return `${year}-${month}-${day}`;
-}
-
-function addDays(base: Date, days: number) {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d;
-}
 
 export default async function JobDetailPage({
   params,
@@ -90,11 +52,10 @@ export default async function JobDetailPage({
     );
   }
 
-  const todayDate = new Date();
-  const today = toYmd(todayDate);
-  const yesterday = toYmd(addDays(todayDate, -1));
-  const last7Start = toYmd(addDays(todayDate, -6));
-  const last30Start = toYmd(addDays(todayDate, -29));
+  const today = getTodayYmd();
+  const yesterday = getYesterdayYmd();
+  const last7Start = getLast7DaysStartYmd();
+  const last30Start = getLast30DaysStartYmd();
 
   const startDate =
     query.start_date && query.start_date.trim() ? query.start_date : today;
@@ -144,37 +105,23 @@ export default async function JobDetailPage({
           <div>
             <Link
               href="/admin/jobs"
-              className="text-sm text-blue-600 underline"
+              className="inline-flex items-center text-sm text-blue-600 hover:underline"
             >
-              Back to Jobs
+              ← Back to Jobs
             </Link>
 
             <h1 className="mt-3 text-2xl font-bold">{jobDisplay}</h1>
-
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <span
-                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                  job.is_active
-                    ? "bg-green-100 text-green-700"
-                    : "bg-gray-200 text-gray-700"
-                }`}
-              >
-                {job.is_active ? "Active" : "Inactive"}
-              </span>
-
-              <span className="text-sm text-gray-500">
-                Created{" "}
-                {job.created_at ? formatDate(job.created_at) : "-"}
-              </span>
-            </div>
+            <p className="mt-2 text-gray-800">
+              {job.is_active ? "Active job" : "Inactive job"}
+            </p>
           </div>
 
-          <div className="min-w-[280px] space-y-3">
+          <div className="min-w-[320px]">
             <form method="get" className="space-y-3">
               <div>
                 <label
                   htmlFor="start_date"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-gray-900"
                 >
                   Start date
                 </label>
@@ -190,7 +137,7 @@ export default async function JobDetailPage({
               <div>
                 <label
                   htmlFor="end_date"
-                  className="block text-sm font-medium text-gray-700"
+                  className="block text-sm font-medium text-gray-900"
                 >
                   End date
                 </label>
@@ -219,13 +166,6 @@ export default async function JobDetailPage({
                 </Link>
               </div>
             </form>
-
-            <Link
-              href={`/admin/jobs/${job.id}/export?start_date=${normalizedStartDate}&end_date=${normalizedEndDate}`}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
-            >
-              Export Excel
-            </Link>
           </div>
         </div>
 
@@ -262,26 +202,18 @@ export default async function JobDetailPage({
 
       <div className="rounded-2xl bg-white p-6 shadow">
         <h2 className="text-lg font-semibold">Selected Range</h2>
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 text-gray-800">
           {isSingleDay ? (
             <>
               Showing records for{" "}
-              <span className="font-medium">
-                {formatDate(normalizedStartDate)}
-              </span>
-              .
+              <span className="font-medium">{formatYmd(normalizedStartDate)}</span>.
             </>
           ) : (
             <>
               Showing records from{" "}
-              <span className="font-medium">
-                {formatDate(normalizedStartDate)}
-              </span>{" "}
+              <span className="font-medium">{formatYmd(normalizedStartDate)}</span>{" "}
               to{" "}
-              <span className="font-medium">
-                {formatDate(normalizedEndDate)}
-              </span>
-              .
+              <span className="font-medium">{formatYmd(normalizedEndDate)}</span>.
             </>
           )}
         </p>
@@ -289,35 +221,34 @@ export default async function JobDetailPage({
 
       <div className="grid gap-4 sm:grid-cols-4">
         <div className="rounded-2xl bg-white p-6 shadow">
-          <p className="text-sm text-gray-600">Total sign-ins</p>
+          <p className="text-sm text-gray-800">Total sign-ins</p>
           <p className="mt-2 text-3xl font-bold">{totalForRange}</p>
         </div>
 
         <div className="rounded-2xl bg-white p-6 shadow">
-          <p className="text-sm text-gray-600">Unique workers</p>
+          <p className="text-sm text-gray-800">Unique workers</p>
           <p className="mt-2 text-3xl font-bold">{uniqueWorkers}</p>
         </div>
 
         <div className="rounded-2xl bg-white p-6 shadow">
-          <p className="text-sm text-gray-600">Injured</p>
+          <p className="text-sm text-gray-800">Injured</p>
           <p className="mt-2 text-3xl font-bold">{injuredCount}</p>
         </div>
 
         <div className="rounded-2xl bg-white p-6 shadow">
-          <p className="text-sm text-gray-600">Still signed in</p>
+          <p className="text-sm text-gray-800">Still signed in</p>
           <p className="mt-2 text-3xl font-bold">{openCount}</p>
         </div>
       </div>
 
       <div className="rounded-2xl bg-white p-6 shadow">
         <h2 className="text-lg font-semibold">Sign-Ins</h2>
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 text-gray-800">
           {isSingleDay ? (
             <>
-              Showing records for <span className="font-medium">{jobDisplay}</span>{" "}
-              on{" "}
+              Showing records for <span className="font-medium">{jobDisplay}</span> on{" "}
               <span className="font-medium">
-                {formatDate(normalizedStartDate)}
+                {formatYmd(normalizedStartDate)}
               </span>
               .
             </>
@@ -326,11 +257,11 @@ export default async function JobDetailPage({
               Showing records for <span className="font-medium">{jobDisplay}</span>{" "}
               from{" "}
               <span className="font-medium">
-                {formatDate(normalizedStartDate)}
+                {formatYmd(normalizedStartDate)}
               </span>{" "}
               to{" "}
               <span className="font-medium">
-                {formatDate(normalizedEndDate)}
+                {formatYmd(normalizedEndDate)}
               </span>
               .
             </>
@@ -340,14 +271,14 @@ export default async function JobDetailPage({
         {checkinsError ? (
           <p className="mt-6 text-red-600">{checkinsError.message}</p>
         ) : !checkins || checkins.length === 0 ? (
-          <p className="mt-6 text-gray-600">
+          <p className="mt-6 text-gray-800">
             No sign-ins found for this date range.
           </p>
         ) : (
           <div className="mt-6 overflow-x-auto">
             <table className="min-w-full border-collapse">
               <thead>
-                <tr className="border-b border-gray-200 text-left text-sm text-gray-700">
+                <tr className="border-b border-gray-200 text-left text-sm text-gray-800">
                   <th className="px-4 py-3 font-semibold">Worker</th>
                   <th className="px-4 py-3 font-semibold">Date</th>
                   <th className="px-4 py-3 font-semibold">Injured</th>
@@ -357,17 +288,19 @@ export default async function JobDetailPage({
                 </tr>
               </thead>
               <tbody>
-                {checkins.map((checkin) => (
+                {checkins.map((checkin, index) => (
                   <tr
                     key={checkin.id}
-                    className="border-b border-gray-100 text-sm"
+                    className={`text-sm ${
+                      index % 2 === 0 ? "bg-white" : "bg-gray-50/60"
+                    } hover:bg-gray-50`}
                   >
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {checkin.worker_name}
                     </td>
 
-                    <td className="px-4 py-3 text-gray-700">
-                      {formatDate(checkin.checkin_date)}
+                    <td className="px-4 py-3 text-gray-900">
+                      {formatYmd(checkin.checkin_date)}
                     </td>
 
                     <td className="px-4 py-3">
