@@ -74,7 +74,24 @@ async function submitSignIn(formData: FormData) {
     String(formData.get("worker_name") ?? "")
   );
   const jobId = String(formData.get("job_id") ?? "").trim();
-  const jobName = String(formData.get("job_name") ?? "").trim();
+
+  const { data: jobRow, error: jobError } = await supabase
+  .from("jobs")
+  .select("name, job_number")
+  .eq("id", jobId)
+  .single();
+
+if (jobError || !jobRow) {
+  redirect(
+    `/checkin/sign-in?error=${encodeURIComponent("Selected job not found.")}&job=${encodeURIComponent(jobId)}`
+  );
+}
+
+const jobName = jobRow.name;
+const fullJobName = jobRow.job_number
+  ? `${jobRow.job_number} - ${jobRow.name}`
+  : jobRow.name;
+
   const injuredValue = String(formData.get("injured") ?? "false");
   const signatureData = String(formData.get("signature_data") ?? "").trim();
   const injured = injuredValue === "true";
@@ -145,7 +162,7 @@ async function submitSignIn(formData: FormData) {
   if (injured) {
   await sendInjuryAlert({
     workerName,
-    jobName,
+    jobName: fullJobName,
     injured,
     actionType: "sign-in",
     timestamp: signedAt,
@@ -344,22 +361,6 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           </GuardedForm>
         )}
       </div>
-
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            document.addEventListener("change", function (e) {
-              const target = e.target;
-              if (target && target.id === "job_id") {
-                const select = target;
-                const hidden = document.getElementById("job_name");
-                const selectedText = select.options[select.selectedIndex]?.text || "";
-                if (hidden) hidden.value = selectedText;
-              }
-            });
-          `,
-        }}
-      />
     </main>
   );
 }

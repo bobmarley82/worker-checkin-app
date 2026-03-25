@@ -41,7 +41,24 @@ async function submitSignOut(formData: FormData) {
   const workerName = normalizeWorkerName(rawWorkerName);
 
   const jobId = String(formData.get("job_id") ?? "").trim();
-  const jobName = String(formData.get("job_name") ?? "").trim();
+
+  const { data: jobRow, error: jobError } = await supabase
+  .from("jobs")
+  .select("name, job_number")
+  .eq("id", jobId)
+  .single();
+
+if (jobError || !jobRow) {
+  redirect(
+    `/checkin/sign-out?error=${encodeURIComponent("Selected job not found.")}&job=${encodeURIComponent(jobId)}`
+  );
+}
+
+const jobName = jobRow.name;
+const fullJobName = jobRow.job_number
+  ? `${jobRow.job_number} - ${jobRow.name}`
+  : jobRow.name;
+
   const injuredValue = String(formData.get("injured") ?? "false");
   const signoutSignatureData = String(
     formData.get("signout_signature_data") ?? ""
@@ -88,7 +105,7 @@ async function submitSignOut(formData: FormData) {
   if (injured) {
   await sendInjuryAlert({
     workerName,
-    jobName,
+    jobName: fullJobName,
     injured,
     actionType: "sign-out",
     timestamp: new Date().toISOString(),
@@ -298,21 +315,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
         )}
       </div>
 
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            document.addEventListener("change", function (e) {
-              const target = e.target;
-              if (target && target.id === "job_id") {
-                const select = target;
-                const hidden = document.getElementById("job_name");
-                const selectedText = select.options[select.selectedIndex]?.text || "";
-                if (hidden) hidden.value = selectedText;
-              }
-            });
-          `,
-        }}
-      />
+      
     </main>
   );
 }
