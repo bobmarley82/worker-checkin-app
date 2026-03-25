@@ -9,13 +9,28 @@ type RouteContext = {
   }>;
 };
 
+const APP_TIME_ZONE = "America/Los_Angeles";
+
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString();
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIME_ZONE,
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(dateString));
 }
 
 function formatDateTime(dateString: string | null) {
-  if (!dateString) return "";
-  return new Date(dateString).toLocaleString();
+  if (!dateString) return "-";
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIME_ZONE,
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(dateString));
 }
 
 export async function GET(request: Request, context: RouteContext) {

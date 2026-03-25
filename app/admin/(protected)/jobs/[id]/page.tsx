@@ -13,17 +13,38 @@ type JobDetailPageProps = {
   }>;
 };
 
+const APP_TIME_ZONE = "America/Los_Angeles";
+
 function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString();
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIME_ZONE,
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(dateString));
 }
 
 function formatDateTime(dateString: string | null) {
   if (!dateString) return "-";
-  return new Date(dateString).toLocaleString();
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: APP_TIME_ZONE,
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(dateString));
 }
 
+
 function toYmd(date: Date) {
-  return date.toISOString().split("T")[0];
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
 }
 
 function addDays(base: Date, days: number) {
