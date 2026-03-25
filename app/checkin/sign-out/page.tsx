@@ -6,6 +6,7 @@ import SubmitButton from "../SubmitButton";
 import SignatureField from "../SignatureField";
 import WorkerNameInput from "../WorkerNameInput";
 import { toYmd } from "@/lib/datetime";
+import { sendInjuryAlert } from "@/lib/sendInjuryAlert";
 
 type SignOutPageProps = {
   searchParams: Promise<{
@@ -79,6 +80,16 @@ async function submitSignOut(formData: FormData) {
       )}`
     );
   }
+
+  if (injured) {
+  await sendInjuryAlert({
+    workerName,
+    jobName,
+    injured,
+    actionType: "sign-out",
+    timestamp: new Date().toISOString(),
+  });
+}
 
   revalidatePath("/admin/records");
   revalidatePath("/admin/jobs");
@@ -206,7 +217,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
         {error ? (
           <p className="mt-4 text-red-600">{error.message}</p>
         ) : (
-          <form action={submitSignOut} className="mt-6 space-y-5">
+          <form id="sign-out-form" action={submitSignOut} className="mt-6 space-y-5">
             <WorkerNameInput workers={workerNames} />
 
             <div>
@@ -294,3 +305,38 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
     </main>
   );
 }
+
+<script
+  dangerouslySetInnerHTML={{
+    __html: `
+      document.addEventListener("change", function (e) {
+        const target = e.target;
+        if (target && target.id === "job_id") {
+          const select = target;
+          const hidden = document.getElementById("job_name");
+          const selectedText = select.options[select.selectedIndex]?.text || "";
+          if (hidden) hidden.value = selectedText;
+        }
+      });
+
+      document.addEventListener("submit", function (e) {
+        const form = e.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        if (form.id !== "sign-out-form") return;
+
+        const injuredInput = form.querySelector('input[name="injured"]:checked');
+        const injuredValue = injuredInput ? injuredInput.value : "false";
+
+        if (injuredValue === "true") {
+          const confirmed = window.confirm(
+            "Are you sure you want to report an injury?"
+          );
+
+          if (!confirmed) {
+            e.preventDefault();
+          }
+        }
+      });
+    `,
+  }}
+/>

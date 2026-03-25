@@ -5,6 +5,7 @@ import SignatureField from "../SignatureField";
 import SubmitButton from "../SubmitButton";
 import WorkerNameInput from "../WorkerNameInput";
 import { toYmd } from "@/lib/datetime";
+import { sendInjuryAlert } from "@/lib/sendInjuryAlert";
 
 type SignInPageProps = {
   searchParams: Promise<{
@@ -61,6 +62,7 @@ async function submitSignIn(formData: FormData) {
   "use server";
 
   const supabase = await createClient();
+  
 
   // await autoSignOutStaleCheckins();
 
@@ -135,6 +137,16 @@ async function submitSignIn(formData: FormData) {
       )}`
     );
   }
+
+  if (injured) {
+  await sendInjuryAlert({
+    workerName,
+    jobName,
+    injured,
+    actionType: "sign-in",
+    timestamp: signedAt,
+  });
+}
 
   await supabase.from("workers").upsert(
     {
@@ -255,7 +267,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
         {error ? (
           <p className="mt-4 text-red-600">{error.message}</p>
         ) : (
-          <form action={submitSignIn} className="mt-6 space-y-5">
+          <form id="sign-in-form" action={submitSignIn} className="mt-6 space-y-5">
             <WorkerNameInput workers={workerNames} />
 
             <div>
@@ -342,3 +354,38 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
     </main>
   );
 }
+
+<script
+  dangerouslySetInnerHTML={{
+    __html: `
+      document.addEventListener("change", function (e) {
+        const target = e.target;
+        if (target && target.id === "job_id") {
+          const select = target;
+          const hidden = document.getElementById("job_name");
+          const selectedText = select.options[select.selectedIndex]?.text || "";
+          if (hidden) hidden.value = selectedText;
+        }
+      });
+
+      document.addEventListener("submit", function (e) {
+        const form = e.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        if (form.id !== "sign-in-form") return;
+
+        const injuredInput = form.querySelector('input[name="injured"]:checked');
+        const injuredValue = injuredInput ? injuredInput.value : "false";
+
+        if (injuredValue === "true") {
+          const confirmed = window.confirm(
+            "Are you sure you want to report an injury?"
+          );
+
+          if (!confirmed) {
+            e.preventDefault();
+          }
+        }
+      });
+    `,
+  }}
+/>
