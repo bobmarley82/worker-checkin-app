@@ -25,6 +25,17 @@ function normalizeWorkerName(value: string) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+const APP_TIME_ZONE = "America/Los_Angeles";
+
+function getLocalYmd() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: APP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 async function autoSignOutStaleCheckins() {
   const supabase = await createClient();
 
@@ -112,7 +123,7 @@ async function submitSignIn(formData: FormData) {
     );
   }
 
-  const today = new Date().toLocaleDateString("en-CA");
+  const today = getLocalYmd();
 
 const { error } = await supabase.from("checkins").insert({
   worker_name: workerName,
