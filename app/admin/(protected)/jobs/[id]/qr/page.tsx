@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { requireSuperAdmin } from "@/lib/auth";
+import { requireViewerAdmin } from "@/lib/auth";
+import { adminCanAccessJob } from "@/lib/adminJobs";
 import { QRCodeSVG } from "qrcode.react";
 import PrintQrButton from "./PrintQrButton";
 import CopyQrPageLinkButton from "./CopyQrPageLinkButton";
@@ -12,10 +13,29 @@ type JobQrPageProps = {
 };
 
 export default async function JobQrPage({ params }: JobQrPageProps) {
-  await requireSuperAdmin();
+  const profile = await requireViewerAdmin();
 
   const { id } = await params;
   const supabase = await createClient();
+  const canAccessJob = await adminCanAccessJob(
+    supabase,
+    profile.id,
+    profile.role,
+    id
+  );
+
+  if (!canAccessJob) {
+    return (
+      <main className="min-h-screen bg-gray-50 p-8">
+        <div className="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow">
+          <p className="text-red-600">Job not found.</p>
+          <Link href="/admin/jobs" className="mt-4 inline-block">
+            Back to Jobs
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   const { data: job, error } = await supabase
     .from("jobs")

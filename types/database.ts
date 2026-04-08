@@ -39,6 +39,9 @@ export type Database = {
           id: string;
           name: string;
           job_number: string | null;
+          location_address: string | null;
+          location_city: string | null;
+          location_zip: string | null;
           is_active: boolean;
           created_by: string | null;
           created_at: string | null;
@@ -47,6 +50,9 @@ export type Database = {
           id?: string;
           name: string;
           job_number?: string | null;
+          location_address?: string | null;
+          location_city?: string | null;
+          location_zip?: string | null;
           is_active?: boolean;
           created_by?: string | null;
           created_at?: string | null;
@@ -55,6 +61,9 @@ export type Database = {
           id?: string;
           name?: string;
           job_number?: string | null;
+          location_address?: string | null;
+          location_city?: string | null;
+          location_zip?: string | null;
           is_active?: boolean;
           created_by?: string | null;
           created_at?: string | null;
@@ -64,6 +73,47 @@ export type Database = {
             foreignKeyName: "jobs_created_by_fkey";
             columns: ["created_by"];
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+
+      admin_job_assignments: {
+        Row: {
+          admin_id: string;
+          job_id: string;
+          assigned_at: string;
+          assigned_by: string | null;
+        };
+        Insert: {
+          admin_id: string;
+          job_id: string;
+          assigned_at?: string;
+          assigned_by?: string | null;
+        };
+        Update: {
+          admin_id?: string;
+          job_id?: string;
+          assigned_at?: string;
+          assigned_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_job_assignments_admin_id_fkey";
+            columns: ["admin_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "admin_job_assignments_assigned_by_fkey";
+            columns: ["assigned_by"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "admin_job_assignments_job_id_fkey";
+            columns: ["job_id"];
+            referencedRelation: "jobs";
             referencedColumns: ["id"];
           }
         ];
@@ -125,6 +175,95 @@ export type Database = {
         ];
       };
 
+      daily_reports: {
+        Row: {
+          id: string;
+          job_id: string;
+          job_number: string | null;
+          job_name: string;
+          report_date: string;
+          admin_id: string;
+          admin_name: string;
+          worker_count_source: string;
+          worker_count: number;
+          total_hours: number;
+          worker_summary: Json | null;
+          work_performed: string;
+          issues: Json;
+          safety_checklist: Json;
+          inspections_received: string | null;
+          equipment_notes: string | null;
+          material_delivery: string | null;
+          manpower_notes: string | null;
+          photo_data: Json;
+          weather_snapshot: Json | null;
+          signature_data: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          job_id: string;
+          job_number?: string | null;
+          job_name: string;
+          report_date: string;
+          admin_id: string;
+          admin_name: string;
+          worker_count_source: string;
+          worker_count: number;
+          total_hours?: number;
+          worker_summary?: Json | null;
+          work_performed: string;
+          issues?: Json;
+          safety_checklist?: Json;
+          inspections_received?: string | null;
+          equipment_notes?: string | null;
+          material_delivery?: string | null;
+          manpower_notes?: string | null;
+          photo_data?: Json;
+          weather_snapshot?: Json | null;
+          signature_data: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          job_id?: string;
+          job_number?: string | null;
+          job_name?: string;
+          report_date?: string;
+          admin_id?: string;
+          admin_name?: string;
+          worker_count_source?: string;
+          worker_count?: number;
+          total_hours?: number;
+          worker_summary?: Json | null;
+          work_performed?: string;
+          issues?: Json;
+          safety_checklist?: Json;
+          inspections_received?: string | null;
+          equipment_notes?: string | null;
+          material_delivery?: string | null;
+          manpower_notes?: string | null;
+          photo_data?: Json;
+          weather_snapshot?: Json | null;
+          signature_data?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_reports_admin_id_fkey";
+            columns: ["admin_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "daily_reports_job_id_fkey";
+            columns: ["job_id"];
+            referencedRelation: "jobs";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+
       workers: {
         Row: {
           id: string;
@@ -148,7 +287,7 @@ export type Database = {
       };
     };
 
-    Views: {};
+    Views: Record<string, never>;
 
     Functions: {
       sign_out_worker: {
@@ -162,8 +301,8 @@ export type Database = {
       };
     };
 
-    Enums: {};
+    Enums: Record<string, never>;
 
-    CompositeTypes: {};
+    CompositeTypes: Record<string, never>;
   };
 };

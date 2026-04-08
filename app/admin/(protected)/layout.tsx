@@ -1,5 +1,5 @@
 import AdminNav from "@/app/admin/AdminNav";
-import { getAdminProfile } from "@/lib/auth";
+import { getAdminProfile, getAdminRoleLabel } from "@/lib/auth";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -11,31 +11,31 @@ export default async function AdminLayout({
   const { profile } = await getAdminProfile();
 
   return (
-    <main className="min-h-screen bg-gray-100">
-      
-      {/* HEADER */}
-      <div className="border-b border-gray-200 bg-white print:hidden">
-        <div className="app-container flex items-center justify-between px-4 py-3">
-
-          {/* 🔥 LOGO (replaces text) */}
-          <Link href="/" className="flex items-center">
+    <main className="admin-shell print:bg-white">
+      <div className="admin-header print:hidden">
+        <div className="app-container admin-header-inner">
+          <Link href="/" className="admin-brand">
             <Image
               src="/ICBILogo.png"
               alt="Ironwood Commercial Builders Inc."
               width={260}
               height={80}
               priority
-              className="h-24 w-auto object-contain"
+              className="h-16 w-auto object-contain sm:h-20"
             />
+            <div className="admin-brand-copy hidden sm:block">
+              <p className="admin-kicker">ICBI Connect</p>
+              <p className="mt-1 text-sm">
+                {getAdminRoleLabel(profile.role)} workspace
+              </p>
+            </div>
           </Link>
 
-          {/* NAV */}
           <AdminNav role={profile.role} />
         </div>
       </div>
 
-      {/* PAGE CONTENT */}
-      <div className="app-container space-y-6 p-6">
+      <div className="app-container admin-page space-y-5 md:space-y-6">
         {children}
       </div>
     </main>

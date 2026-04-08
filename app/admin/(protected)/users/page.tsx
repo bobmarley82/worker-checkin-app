@@ -1,7 +1,13 @@
+import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireSuperAdmin } from "@/lib/auth";
+import { type AdminRole, getAdminRoleLabel, requireSuperAdmin } from "@/lib/auth";
 import AddAdminForm from "./AddAdminForm";
+
+type AdminFormState = {
+  error?: string;
+  success?: string;
+} | null;
 
 async function getSuperAdminCount() {
   const admin = createAdminClient();
@@ -40,8 +46,10 @@ async function isTargetLastActiveSuperAdmin(userId: string) {
   return superAdminCount <= 1;
 }
 
-async function createAdmin(prevState: any, formData: FormData) {
+async function createAdmin(prevState: AdminFormState, formData: FormData) {
   "use server";
+
+  void prevState;
 
   await requireSuperAdmin();
 
@@ -103,11 +111,11 @@ async function changeAdminRole(formData: FormData) {
   }
 
   if (currentProfile.id === userId && role !== "super_admin") {
-    throw new Error("You cannot remove your own super admin role.");
+    throw new Error("You cannot remove your own Office/Admin role.");
   }
 
   if (role !== "super_admin" && (await isTargetLastActiveSuperAdmin(userId))) {
-    throw new Error("There must always be at least one active super admin.");
+    throw new Error("There must always be at least one active Office/Admin.");
   }
 
   const { error } = await admin
@@ -139,7 +147,7 @@ async function disableAdmin(formData: FormData) {
   }
 
   if (await isTargetLastActiveSuperAdmin(userId)) {
-    throw new Error("There must always be at least one active super admin.");
+    throw new Error("There must always be at least one active Office/Admin.");
   }
 
   const { error: profileError } = await admin
@@ -238,18 +246,21 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-
-
-      <div className="rounded-2xl bg-white p-6 shadow">
-        <h2 className="text-lg font-semibold">Create Admin</h2>
+      <div className="admin-card p-6 sm:p-7">
+        <p className="admin-kicker">User Setup</p>
+        <h2 className="admin-title mt-3 text-2xl font-semibold">Create Admin</h2>
+        <p className="admin-copy mt-3 max-w-3xl text-sm sm:text-base">
+          Add a new admin account, choose the right role, and set a temporary
+          password for their first sign-in.
+        </p>
         <AddAdminForm action={createAdmin} />
       </div>
 
-      <div className="rounded-2xl bg-white p-6 shadow">
-        <h2 className="text-lg font-semibold">Admin Users</h2>
-        <p className="mt-2 text-sm text-gray-600">
-          Super admins can manage other admins. Disabled admins can be reactivated.
-        The last active super admin cannot be demoted or disabled.
+      <div className="admin-card p-6 sm:p-7">
+        <h2 className="admin-title text-xl font-semibold">Admin Users</h2>
+        <p className="admin-copy mt-2 text-sm">
+          Office/Admin users can manage other admins. Disabled admins can be reactivated.
+          The last active Office/Admin cannot be demoted or disabled.
         </p>
 
         {errorMessage ? (
@@ -257,8 +268,8 @@ export default async function AdminUsersPage() {
         ) : mergedAdmins.length === 0 ? (
           <p className="mt-4 text-gray-600">No admin users found.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full border-collapse">
+          <div className="admin-table-wrap mt-4">
+            <table className="admin-table min-w-full border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-sm text-gray-700">
                   <th className="px-4 py-3 font-semibold">Name</th>
@@ -286,7 +297,12 @@ export default async function AdminUsersPage() {
                   return (
                     <tr key={adminUser.id} className="border-b border-gray-100 text-sm">
                       <td className="px-4 py-3 font-medium text-gray-900">
-                        {adminUser.full_name ?? "-"}
+                        <Link
+                          href={`/admin/users/${adminUser.id}`}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          {adminUser.full_name ?? "-"}
+                        </Link>
                       </td>
 
                       <td className="px-4 py-3 text-gray-700">
@@ -301,9 +317,7 @@ export default async function AdminUsersPage() {
                               : "bg-blue-100 text-blue-700"
                           }`}
                         >
-                          {adminUser.role === "super_admin"
-                            ? "Super Admin"
-                            : "Viewer Admin"}
+                          {getAdminRoleLabel(adminUser.role as AdminRole)}
                         </span>
                       </td>
 
@@ -339,8 +353,8 @@ export default async function AdminUsersPage() {
                               >
                                 Make{" "}
                                 {adminUser.role === "super_admin"
-                                  ? "Viewer"
-                                  : "Super"}
+                                  ? "Field Supervisor"
+                                  : "Office/Admin"}
                               </button>
                             </form>
                           ) : (
@@ -350,7 +364,7 @@ export default async function AdminUsersPage() {
                                 : isSelf
                                 ? "Cannot change own role"
                                 : adminUser.isLastActiveSuperAdmin
-                                ? "Last super admin"
+                                ? "Last Office/Admin"
                                 : "Role locked"}
                             </span>
                           )}
@@ -380,7 +394,7 @@ export default async function AdminUsersPage() {
                               {isSelf
                                 ? "Cannot disable self"
                                 : adminUser.isLastActiveSuperAdmin
-                                ? "Last super admin"
+                                ? "Last Office/Admin"
                                 : "Disable locked"}
                             </span>
                           )}

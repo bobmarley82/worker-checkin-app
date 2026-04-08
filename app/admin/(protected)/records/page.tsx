@@ -3,6 +3,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewerAdmin, requireSuperAdmin } from "@/lib/auth";
+import { getAccessibleJobsForAdmin } from "@/lib/adminJobs";
 import DeleteCheckinButton from "./DeleteCheckinButton";
 
 export const dynamic = "force-dynamic";
@@ -81,11 +82,13 @@ export default async function AdminRecordsPage({
   const selectedJobId = query.job_id?.trim() ?? "";
   const workerSearch = query.worker?.trim() ?? "";
 
-  const { data: jobs, error: jobsError } = await supabase
-    .from("jobs")
-    .select("id, name, job_number, is_active")
-    .order("job_number", { ascending: true })
-    .order("name", { ascending: true });
+  const { jobs, error: jobsError } = await getAccessibleJobsForAdmin(
+    supabase,
+    profile.id,
+    profile.role,
+    { includeInactive: true }
+  );
+  const accessibleJobIds = jobs.map((job) => job.id);
 
   let checkinsQuery = supabase
     .from("checkins")
@@ -112,6 +115,13 @@ export default async function AdminRecordsPage({
     .lte("checkin_date", normalizedEndDate)
     .order("checkin_date", { ascending: false })
     .order("signed_at", { ascending: false });
+
+  if (!isSuperAdmin) {
+    checkinsQuery =
+      accessibleJobIds.length > 0
+        ? checkinsQuery.in("job_id", accessibleJobIds)
+        : checkinsQuery.eq("job_id", "00000000-0000-0000-0000-000000000000");
+  }
 
   if (selectedJobId) {
     checkinsQuery = checkinsQuery.eq("job_id", selectedJobId);
@@ -182,16 +192,19 @@ export default async function AdminRecordsPage({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl bg-white p-6 shadow">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="admin-hero p-6 sm:p-8">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Records Archive</h1>
-            <p className="mt-2 text-gray-800">
-              View sign-ins across all jobs by date range, job, and worker.
+            <p className="admin-kicker">History</p>
+            <h1 className="admin-title mt-3 text-3xl font-bold">Records Archive</h1>
+            <p className="admin-copy mt-3 max-w-3xl text-sm sm:text-base">
+              {isSuperAdmin
+                ? "View sign-ins across all jobs by date range, job, and worker."
+                : "View sign-ins for jobs assigned to you by date range, job, and worker."}
             </p>
           </div>
 
-          <div className="min-w-[320px]">
+          <div className="w-full xl:max-w-md">
             <form method="get" className="space-y-3">
               <div>
                 <label
@@ -265,17 +278,17 @@ export default async function AdminRecordsPage({
                 />
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <button
                   type="submit"
-                  className="flex-1 rounded-lg bg-black px-4 py-2 text-white hover:opacity-90"
+                  className="admin-action-primary flex-1"
                 >
                   Apply Filter
                 </button>
 
                 <Link
                   href="/admin/records"
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"
+                  className="admin-action-secondary"
                 >
                   Reset
                 </Link>
@@ -292,7 +305,7 @@ export default async function AdminRecordsPage({
               selectedJobId || undefined,
               workerSearch || undefined
             )}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+            className="admin-action-subtle text-sm"
           >
             Today
           </Link>
@@ -304,7 +317,7 @@ export default async function AdminRecordsPage({
               selectedJobId || undefined,
               workerSearch || undefined
             )}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+            className="admin-action-subtle text-sm"
           >
             Yesterday
           </Link>
@@ -316,7 +329,7 @@ export default async function AdminRecordsPage({
               selectedJobId || undefined,
               workerSearch || undefined
             )}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+            className="admin-action-subtle text-sm"
           >
             Last 7 Days
           </Link>
@@ -328,23 +341,23 @@ export default async function AdminRecordsPage({
               selectedJobId || undefined,
               workerSearch || undefined
             )}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+            className="admin-action-subtle text-sm"
           >
             Last 30 Days
           </Link>
 
           <Link
             href={exportHref}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+            className="admin-action-secondary text-sm"
           >
             Export Excel
           </Link>
         </div>
       </div>
 
-      <div className="rounded-2xl bg-white p-6 shadow">
-        <h2 className="text-lg font-semibold">Selected Filters</h2>
-        <p className="mt-2 text-gray-800">
+      <div className="admin-card p-6">
+        <h2 className="admin-title text-xl font-semibold">Selected Filters</h2>
+        <p className="admin-copy mt-2">
           {selectedJobName ? (
             <>
               Job: <span className="font-medium">{selectedJobName}</span>
@@ -377,7 +390,7 @@ export default async function AdminRecordsPage({
             </>
           ) : (
             <>
-              All jobs
+              {isSuperAdmin ? "All jobs" : "All assigned jobs"}
               {workerSearch ? (
                 <>
                   {" "}
@@ -409,41 +422,47 @@ export default async function AdminRecordsPage({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-2xl bg-white p-6 shadow">
-          <p className="text-sm text-gray-800">Total sign-ins</p>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="admin-stat-card p-5">
+          <p className="admin-subtle text-sm">Total sign-ins</p>
           <p className="mt-2 text-3xl font-bold">{totalSignins}</p>
         </div>
 
-        <div className="rounded-2xl bg-white p-6 shadow">
-          <p className="text-sm text-gray-800">Unique workers</p>
+        <div className="admin-stat-card p-5">
+          <p className="admin-subtle text-sm">Unique workers</p>
           <p className="mt-2 text-3xl font-bold">{uniqueWorkers}</p>
         </div>
 
-        <div className="rounded-2xl bg-white p-6 shadow">
-          <p className="text-sm text-gray-800">Injured</p>
+        <div className="admin-stat-card p-5">
+          <p className="admin-subtle text-sm">Injured</p>
           <p className="mt-2 text-3xl font-bold">{injuredCount}</p>
         </div>
 
-        <div className="rounded-2xl bg-white p-6 shadow">
-          <p className="text-sm text-gray-800">Still signed in</p>
+        <div className="admin-stat-card p-5">
+          <p className="admin-subtle text-sm">Still signed in</p>
           <p className="mt-2 text-3xl font-bold">{openCount}</p>
         </div>
       </div>
 
-      <div className="rounded-2xl bg-white p-6 shadow">
-        <h2 className="text-lg font-semibold">Records</h2>
-        <p className="mt-2 text-gray-800">Historical sign-ins across all jobs.</p>
+      <div className="admin-card p-6 sm:p-7">
+        <h2 className="admin-title text-xl font-semibold">Records</h2>
+        <p className="admin-copy mt-2">
+          {isSuperAdmin
+            ? "Historical sign-ins across all jobs."
+            : "Historical sign-ins for jobs assigned to you."}
+        </p>
 
         {jobsError ? (
           <p className="mt-6 text-red-600">{jobsError.message}</p>
         ) : checkinsError ? (
           <p className="mt-6 text-red-600">{checkinsError.message}</p>
         ) : !checkins || checkins.length === 0 ? (
-          <p className="mt-6 text-gray-800">No records found for this filter.</p>
+          <div className="admin-empty mt-6 px-4 py-5 text-sm">
+            No records found for this filter.
+          </div>
         ) : (
-          <div className="mt-6 overflow-x-auto">
-            <table className="min-w-full border-collapse">
+          <div className="admin-table-wrap mt-6">
+            <table className="admin-table min-w-full border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-sm text-gray-800">
                   {isSuperAdmin ? (

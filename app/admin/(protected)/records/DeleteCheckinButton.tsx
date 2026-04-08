@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 
 type DeleteState = {
   error?: string;
@@ -21,14 +21,9 @@ export default function DeleteCheckinButton({
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(action, initialState);
+  const isOpen = open && !state?.success;
 
-  useEffect(() => {
-    if (state?.success) {
-      setOpen(false);
-    }
-  }, [state]);
-
-  if (!open) {
+  if (!isOpen) {
     return (
       <button
         type="button"

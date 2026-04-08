@@ -2,12 +2,20 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewerAdmin, requireSuperAdmin } from "@/lib/auth";
+import { getAccessibleJobsForAdmin } from "@/lib/adminJobs";
 
 import AddJobForm from "./AddJobForm";
 import CopyQrLinkButton from "./CopyQrLinkButton";
 
-async function addJob(prevState: any, formData: FormData) {
+type JobFormState = {
+  error?: string;
+  success?: string;
+} | null;
+
+async function addJob(prevState: JobFormState, formData: FormData) {
   "use server";
+
+  void prevState;
 
   await requireSuperAdmin();
 
@@ -150,18 +158,34 @@ export default async function AdminJobsPage() {
 
   const supabase = await createClient();
 
-  const { data: jobs, error } = await supabase
-    .from("jobs")
-    .select("id, name, job_number, is_active, created_at")
-    .order("created_at", { ascending: false });
+  const { jobs, error } = await getAccessibleJobsForAdmin(
+    supabase,
+    profile.id,
+    profile.role,
+    { includeInactive: true }
+  );
+  const accessibleJobIds = jobs.map((job) => job.id);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const today = new Date().toLocaleDateString("en-CA");
 
-  const { data: todaysCheckins, error: todaysCheckinsError } = await supabase
+  let todaysCheckinsQuery = supabase
     .from("checkins")
     .select("job_id")
     .eq("checkin_date", today);
+
+  if (!isSuperAdmin) {
+    todaysCheckinsQuery =
+      accessibleJobIds.length > 0
+        ? todaysCheckinsQuery.in("job_id", accessibleJobIds)
+        : todaysCheckinsQuery.eq(
+            "job_id",
+            "00000000-0000-0000-0000-000000000000"
+          );
+  }
+
+  const { data: todaysCheckins, error: todaysCheckinsError } =
+    await todaysCheckinsQuery;
 
   const todayCountsByJob = (todaysCheckins ?? []).reduce<Record<string, number>>(
     (acc, checkin) => {
@@ -172,6 +196,11 @@ export default async function AdminJobsPage() {
   );
 
   const activeJobs = (jobs ?? []).filter((job) => job.is_active);
+  const jobsSortedByCreatedAt = [...jobs].sort((a, b) => {
+    const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return bTime - aTime;
+  });
   const totalTodayAcrossJobs = Object.values(todayCountsByJob).reduce(
     (sum, count) => sum + count,
     0
@@ -186,25 +215,27 @@ export default async function AdminJobsPage() {
   return (
     <div className="space-y-6">
       {isSuperAdmin ? (
-        <div className="rounded-2xl bg-white p-6 shadow">
-          <h2 className="text-lg font-semibold">Add Job</h2>
+        <div className="admin-card p-6 sm:p-7">
+          <p className="admin-kicker">Setup</p>
+          <h2 className="admin-title mt-3 text-2xl font-semibold">Add Job</h2>
           <AddJobForm action={addJob} />
         </div>
       ) : null}
 
       {isSuperAdmin && (
-        <div className="rounded-2xl bg-white p-6 shadow">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="admin-card p-6 sm:p-7">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-lg font-semibold">QR Printing</h2>
-              <p className="mt-2 text-gray-800">
+              <p className="admin-kicker">Utilities</p>
+              <h2 className="admin-title mt-3 text-2xl font-semibold">QR Printing</h2>
+              <p className="admin-copy mt-3">
                 Print QR sheets for one job or multiple jobs at once.
               </p>
             </div>
 
             <Link
               href="/admin/jobs/print"
-              className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
+              className="admin-action-secondary"
             >
               Bulk Print QR Codes
             </Link>
@@ -212,9 +243,18 @@ export default async function AdminJobsPage() {
         </div>
       )}
 
-      <div className="rounded-2xl bg-white p-6 shadow">
-        <h2 className="text-lg font-semibold">Today&apos;s Activity</h2>
-        <p className="mt-2 text-gray-800">
+      <div className="admin-hero p-6 sm:p-8">
+        <p className="admin-kicker">Operations</p>
+        <h1 className="admin-title mt-3 text-3xl font-bold">Jobs</h1>
+        <p className="admin-copy mt-3 max-w-3xl text-sm sm:text-base">
+          Track active jobs, launch check-in links, and jump into reporting
+          quickly from one place.
+        </p>
+      </div>
+
+      <div className="admin-card p-6 sm:p-7">
+        <h2 className="admin-title text-xl font-semibold">Today&apos;s Activity</h2>
+        <p className="admin-copy mt-2">
           Quick view of how many workers checked in today.
         </p>
 
@@ -223,13 +263,13 @@ export default async function AdminJobsPage() {
         ) : (
           <>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-sm text-gray-800">Total sign-ins today</p>
+              <div className="admin-stat-card p-4">
+                <p className="admin-subtle text-sm">Total sign-ins today</p>
                 <p className="mt-2 text-3xl font-bold">{totalTodayAcrossJobs}</p>
               </div>
 
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-sm text-gray-800">Active jobs</p>
+              <div className="admin-stat-card p-4">
+                <p className="admin-subtle text-sm">Active jobs</p>
                 <p className="mt-2 text-3xl font-bold">{activeJobs.length}</p>
               </div>
             </div>
@@ -245,12 +285,14 @@ export default async function AdminJobsPage() {
                     <Link
                       key={job.id}
                       href={`/admin/jobs/${job.id}`}
-                      className="rounded-xl border border-gray-200 bg-gray-50 p-4 transition hover:bg-gray-100"
+                      className="admin-stat-card p-4 transition hover:-translate-y-0.5"
                     >
-                      <p className="text-xs text-gray-600">
+                      <p className="admin-subtle text-xs">
                         Job #{job.job_number ?? "-"}
                       </p>
-                      <p className="mt-1 text-sm text-gray-800">{job.name}</p>
+                      <p className="mt-2 text-sm font-semibold text-gray-900">
+                        {job.name}
+                      </p>
                       <p className="mt-1 text-2xl font-bold">{todayCount}</p>
                       <p className="mt-1 text-xs text-gray-700">
                         worker{todayCount === 1 ? "" : "s"} checked in today
@@ -264,21 +306,26 @@ export default async function AdminJobsPage() {
         )}
       </div>
 
-      <div className="rounded-2xl bg-white p-6 shadow">
-        <h2 className="text-lg font-semibold">All Jobs</h2>
+      <div className="admin-card p-6 sm:p-7">
+        <h2 className="admin-title text-xl font-semibold">All Jobs</h2>
 
         {error ? (
           <p className="mt-4 text-red-600">{error.message}</p>
-        ) : !jobs || jobs.length === 0 ? (
-          <p className="mt-4 text-gray-600">No jobs found.</p>
+        ) : jobs.length === 0 ? (
+          <p className="mt-4 text-gray-600">
+            {isSuperAdmin
+              ? "No jobs found."
+              : "No jobs are assigned to you yet."}
+          </p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full border-collapse">
+          <div className="admin-table-wrap mt-5">
+            <table className="admin-table min-w-full border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-sm text-gray-700">
                   <th className="px-4 py-3 font-semibold">Job #</th>
                   <th className="px-4 py-3 font-semibold">Job Name</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Daily Report</th>
                   <th className="px-4 py-3 font-semibold">QR</th>
                   <th className="px-4 py-3 font-semibold">Created</th>
                   {isSuperAdmin ? (
@@ -288,8 +335,9 @@ export default async function AdminJobsPage() {
               </thead>
 
               <tbody>
-                {jobs.map((job) => {
+                {jobsSortedByCreatedAt.map((job) => {
                   const qrLink = `${appUrl}/checkin?job=${job.id}`;
+                  const reportHref = `/admin/forms/daily-report?job=${job.id}&date=${today}&mode=auto`;
 
                   return (
                     <tr key={job.id} className="border-b border-gray-100 text-sm">
@@ -319,10 +367,23 @@ export default async function AdminJobsPage() {
                       </td>
 
                       <td className="px-4 py-3">
+                        {job.is_active ? (
+                          <Link
+                            href={reportHref}
+                            className="admin-action-subtle text-sm"
+                          >
+                            Create Report
+                          </Link>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-2">
                           <Link
                             href={`/admin/jobs/${job.id}/qr`}
-                            className="rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50"
+                            className="admin-action-subtle text-sm"
                           >
                             QR
                           </Link>
@@ -344,7 +405,7 @@ export default async function AdminJobsPage() {
                               <input type="hidden" name="job_id" value={job.id} />
                               <button
                                 type="submit"
-                                className="rounded-lg border border-yellow-400 px-3 py-2 text-sm text-yellow-700 hover:bg-yellow-50"
+                                className="rounded-full border border-yellow-400 px-3 py-2 text-sm text-yellow-700 hover:bg-yellow-50"
                               >
                                 Deactivate
                               </button>
@@ -354,7 +415,7 @@ export default async function AdminJobsPage() {
                               <input type="hidden" name="job_id" value={job.id} />
                               <button
                                 type="submit"
-                                className="rounded-lg border border-green-400 px-3 py-2 text-sm text-green-700 hover:bg-green-50"
+                                className="rounded-full border border-green-400 px-3 py-2 text-sm text-green-700 hover:bg-green-50"
                               >
                                 Reactivate
                               </button>
@@ -362,7 +423,7 @@ export default async function AdminJobsPage() {
                           )}
 
                           <details className="relative">
-                            <summary className="cursor-pointer rounded-lg border border-red-400 px-3 py-2 text-sm text-red-700 hover:bg-red-50">
+                            <summary className="cursor-pointer rounded-full border border-red-400 px-3 py-2 text-sm text-red-700 hover:bg-red-50">
                               Delete
                             </summary>
 

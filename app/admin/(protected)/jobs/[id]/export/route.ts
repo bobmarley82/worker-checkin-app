@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewerAdmin } from "@/lib/auth";
+import { adminCanAccessJob } from "@/lib/adminJobs";
 import {
   formatYmd,
   formatDateTime,
@@ -60,7 +61,7 @@ function safeFilePart(value: string) {
 }
 
 export async function GET(request: Request, context: RouteContext) {
-  await requireViewerAdmin();
+  const profile = await requireViewerAdmin();
 
   const { id } = await context.params;
   const { searchParams } = new URL(request.url);
@@ -69,6 +70,16 @@ export async function GET(request: Request, context: RouteContext) {
   const endDate = searchParams.get("end_date")?.trim() ?? "";
 
   const supabase = await createClient();
+  const canAccessJob = await adminCanAccessJob(
+    supabase,
+    profile.id,
+    profile.role,
+    id
+  );
+
+  if (!canAccessJob) {
+    return NextResponse.json({ error: "Job not found." }, { status: 404 });
+  }
 
   const { data: job, error: jobError } = await supabase
     .from("jobs")

@@ -1,4 +1,3 @@
-
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -9,6 +8,12 @@ import WorkerNameInput from "../WorkerNameInput";
 import { toYmd } from "@/lib/datetime";
 import { sendInjuryAlert } from "@/lib/sendInjuryAlert";
 import GuardedForm from "../GuardedForm";
+import {
+  formatWorkerName,
+  getWorkerBaseKey,
+  normalizeWorkerNameKey,
+  splitWorkerName,
+} from "@/lib/workerName";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +21,8 @@ type SignOutPageProps = {
   searchParams: Promise<{
     success?: string;
     worker_name?: string;
+    selected_worker_name?: string;
+    candidate_names?: string;
     job_name?: string;
     injured?: string;
     date?: string;
@@ -24,12 +31,50 @@ type SignOutPageProps = {
   }>;
 };
 
-function normalizeWorkerName(value: string) {
-  return value
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+function parseNameList(value?: string) {
+  if (!value) return [] as string[];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function buildSignOutRedirect(params: {
+  error?: string;
+  jobId?: string;
+  workerName?: string;
+  selectedWorkerName?: string;
+  candidateNames?: string[];
+}) {
+  const searchParams = new URLSearchParams();
+
+  if (params.error) {
+    searchParams.set("error", params.error);
+  }
+
+  if (params.jobId) {
+    searchParams.set("job", params.jobId);
+  }
+
+  if (params.workerName) {
+    searchParams.set("worker_name", params.workerName);
+  }
+
+  if (params.selectedWorkerName) {
+    searchParams.set("selected_worker_name", params.selectedWorkerName);
+  }
+
+  if (params.candidateNames?.length) {
+    searchParams.set("candidate_names", JSON.stringify(params.candidateNames));
+  }
+
+  const query = searchParams.toString();
+  return query ? `/checkin/sign-out?${query}` : "/checkin/sign-out";
 }
 
 async function submitSignOut(formData: FormData) {
@@ -37,80 +82,138 @@ async function submitSignOut(formData: FormData) {
 
   const supabase = await createClient();
 
-  const rawWorkerName = String(formData.get("worker_name") ?? "");
-  const workerName = normalizeWorkerName(rawWorkerName);
-
-  const jobId = String(formData.get("job_id") ?? "").trim();
-
-  const { data: jobRow, error: jobError } = await supabase
-  .from("jobs")
-  .select("name, job_number")
-  .eq("id", jobId)
-  .single();
-
-if (jobError || !jobRow) {
-  redirect(
-    `/checkin/sign-out?error=${encodeURIComponent("Selected job not found.")}&job=${encodeURIComponent(jobId)}`
+  const submittedWorkerName = String(formData.get("worker_name") ?? "");
+  const workerIdentity = splitWorkerName(submittedWorkerName);
+  const workerBaseName = workerIdentity.baseName;
+  const requestedWorkerName = formatWorkerName(
+    workerBaseName,
+    workerIdentity.workerLabel
   );
-}
-
-const jobName = jobRow.name;
-const fullJobName = jobRow.job_number
-  ? `${jobRow.job_number} - ${jobRow.name}`
-  : jobRow.name;
-
+  const selectedWorkerName = String(formData.get("selected_worker_name") ?? "");
+  const jobId = String(formData.get("job_id") ?? "").trim();
   const injuredValue = String(formData.get("injured") ?? "false");
   const signoutSignatureData = String(
     formData.get("signout_signature_data") ?? ""
   ).trim();
   const injured = injuredValue === "true";
 
-  if (!workerName) {
+  if (!workerBaseName) {
     redirect(
-      `/checkin/sign-out?error=${encodeURIComponent("Worker name is required.")}${
-        jobId ? `&job=${encodeURIComponent(jobId)}` : ""
-      }`
+      buildSignOutRedirect({
+        error: "Worker name is required.",
+        jobId,
+      })
     );
   }
 
   if (!jobId) {
     redirect(
-      `/checkin/sign-out?error=${encodeURIComponent("Job is required.")}`
+      buildSignOutRedirect({
+        error: "Job is required.",
+      })
+    );
+  }
+
+  const { data: jobRow, error: jobError } = await supabase
+    .from("jobs")
+    .select("name, job_number")
+    .eq("id", jobId)
+    .single();
+
+  if (jobError || !jobRow) {
+    redirect(
+      buildSignOutRedirect({
+        error: "Selected job not found.",
+        jobId,
+      })
     );
   }
 
   if (!signoutSignatureData) {
     redirect(
-      `/checkin/sign-out?error=${encodeURIComponent(
-        "Signature is required."
-      )}&job=${encodeURIComponent(jobId)}`
+      buildSignOutRedirect({
+        error: "Signature is required.",
+        jobId,
+        workerName: workerBaseName,
+      })
     );
+  }
+
+  const jobName = jobRow.name;
+  const fullJobName = jobRow.job_number
+    ? `${jobRow.job_number} - ${jobRow.name}`
+    : jobRow.name;
+
+  const { data: openCheckins } = await supabase
+    .from("checkins")
+    .select("worker_name")
+    .eq("job_id", jobId)
+    .is("signed_out_at", null);
+
+  const sameNameCandidates = Array.from(
+    new Set(
+      (openCheckins ?? [])
+        .map((checkin) => checkin.worker_name)
+        .filter((name): name is string => Boolean(name))
+        .filter((name) => getWorkerBaseKey(name) === getWorkerBaseKey(workerBaseName))
+    )
+  );
+
+  let resolvedWorkerName = requestedWorkerName;
+
+  const exactCandidate = sameNameCandidates.find(
+    (name) => normalizeWorkerNameKey(name) === normalizeWorkerNameKey(requestedWorkerName)
+  );
+
+  if (exactCandidate) {
+    resolvedWorkerName = exactCandidate;
+  } else if (sameNameCandidates.length === 1) {
+    resolvedWorkerName = sameNameCandidates[0];
+  } else if (sameNameCandidates.length > 1) {
+    const selectedCandidate = sameNameCandidates.find(
+      (name) => normalizeWorkerNameKey(name) === normalizeWorkerNameKey(selectedWorkerName)
+    );
+
+    if (!selectedCandidate) {
+      redirect(
+        buildSignOutRedirect({
+          error: "Choose which sign-in is yours from the list below.",
+          jobId,
+          workerName: workerBaseName,
+          candidateNames: sameNameCandidates,
+        })
+      );
+    }
+
+    resolvedWorkerName = selectedCandidate;
   }
 
   const { error } = await supabase.rpc("sign_out_worker", {
     p_job_id: jobId,
-    p_worker_name: rawWorkerName,
+    p_worker_name: resolvedWorkerName,
     p_injured: injured,
     p_signout_signature_data: signoutSignatureData,
   });
 
   if (error) {
     redirect(
-      `/checkin/sign-out?error=${encodeURIComponent(error.message)}&job=${encodeURIComponent(
-        jobId
-      )}`
+      buildSignOutRedirect({
+        error: error.message,
+        jobId,
+        workerName: workerBaseName,
+      })
     );
   }
 
   if (injured) {
-  await sendInjuryAlert({
-    workerName,
-    jobName: fullJobName,
-    injured,
-    actionType: "sign-out",
-    timestamp: new Date().toISOString(),
-  });
-}
+    await sendInjuryAlert({
+      workerName: resolvedWorkerName,
+      jobName: fullJobName,
+      injured,
+      actionType: "sign-out",
+      timestamp: new Date().toISOString(),
+    });
+  }
 
   revalidatePath("/admin/records");
   revalidatePath("/admin/jobs");
@@ -119,7 +222,7 @@ const fullJobName = jobRow.job_number
 
   const params = new URLSearchParams({
     success: "1",
-    worker_name: workerName,
+    worker_name: resolvedWorkerName,
     job_name: jobName,
     injured: injured ? "Yes" : "No",
     date: toYmd(now),
@@ -133,10 +236,13 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
   const params = await searchParams;
   const isSuccess = params.success === "1";
   const preselectedJobId = params.job ?? "";
+  const workerNameDefault = params.worker_name ?? "";
   const errorMessage = params.error ?? "";
+  const candidateNames = parseNameList(params.candidate_names);
+  const selectedWorkerNameDefault = params.selected_worker_name ?? "";
 
   if (isSuccess) {
-    return (   
+    return (
       <main className="min-h-screen bg-gray-50 p-6">
         <div className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow">
           <div className="text-center">
@@ -144,7 +250,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
               ✓
             </div>
 
-            <h1 className="mt-4 text-2xl font-bold">You’re Signed Out</h1>
+            <h1 className="mt-4 text-2xl font-bold">You&#39;re Signed Out</h1>
 
             <p className="mt-2 text-sm text-gray-800">
               Your sign-out was submitted successfully.
@@ -182,9 +288,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
             </Link>
 
             <Link
-              href={
-                preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"
-              }
+              href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}
               className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
             >
               Back
@@ -216,7 +320,6 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
 
   return (
     <main className="min-h-screen bg-gray-50 p-8">
-
       <div className="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow">
         <h1 className="text-2xl font-bold">Worker Sign Out</h1>
         <p className="mt-2 text-sm text-gray-800">
@@ -240,13 +343,41 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
           <p className="mt-4 text-red-600">{error.message}</p>
         ) : (
           <GuardedForm
-          id="sign-out-form"
-          action={submitSignOut}
-          className="mt-6 space-y-5"
-          confirmOnInjured
-        >
+            id="sign-out-form"
+            action={submitSignOut}
+            className="mt-6 space-y-5"
+            confirmOnInjured
+          >
+            <WorkerNameInput
+              workers={workerNames}
+              defaultValue={workerNameDefault}
+            />
 
-            <WorkerNameInput workers={workerNames} />
+            {candidateNames.length > 1 ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                <p className="font-medium">
+                  There are multiple open sign-ins for this name on this job.
+                  Choose yours.
+                </p>
+
+                <div className="mt-3 space-y-2">
+                  {candidateNames.map((candidate) => (
+                    <label
+                      key={candidate}
+                      className="flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2"
+                    >
+                      <input
+                        type="radio"
+                        name="selected_worker_name"
+                        value={candidate}
+                        defaultChecked={selectedWorkerNameDefault === candidate}
+                      />
+                      <span>{candidate}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div>
               <label htmlFor="job_id" className="block text-sm font-medium">
@@ -314,8 +445,6 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
           </GuardedForm>
         )}
       </div>
-
-      
     </main>
   );
 }

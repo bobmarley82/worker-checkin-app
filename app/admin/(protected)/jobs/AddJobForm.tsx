@@ -1,12 +1,19 @@
-
 "use client";
 
 import { useActionState } from "react";
 
+type JobFormState = {
+  error?: string;
+  success?: string;
+} | null;
+
 export default function AddJobForm({
   action,
 }: {
-  action: (prevState: any, formData: FormData) => Promise<any>;
+  action: (
+    prevState: JobFormState,
+    formData: FormData
+  ) => Promise<JobFormState>;
 }) {
   const [state, formAction, pending] = useActionState(action, null);
 
@@ -20,13 +27,13 @@ export default function AddJobForm({
           className="flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
           required
         />
-          <input
-            type="text"
-            name="job_number"
-            placeholder="Job number"
-            className="rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
-            required
-          />
+        <input
+          type="text"
+          name="job_number"
+          placeholder="Job number"
+          className="rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+          required
+        />
 
         <button
           type="submit"
@@ -38,7 +45,7 @@ export default function AddJobForm({
       </div>
 
       {state?.error && (
-        <p className="text-sm text-red-600">⚠ {state.error}</p>
+        <p className="text-sm text-red-600">Warning: {state.error}</p>
       )}
 
       {state?.success && (
@@ -47,4 +54,3 @@ export default function AddJobForm({
     </form>
   );
 }
-

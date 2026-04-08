@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export type AdminRole = "super_admin" | "viewer_admin";
 
+export function getAdminRoleLabel(role: AdminRole) {
+  return role === "super_admin" ? "Office/Admin" : "Field Supervisor";
+}
+
 type AdminProfile = {
   id: string;
   full_name: string | null;

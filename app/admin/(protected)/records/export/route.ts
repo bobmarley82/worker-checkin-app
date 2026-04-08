@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewerAdmin } from "@/lib/auth";
+import { getAccessibleJobsForAdmin } from "@/lib/adminJobs";
 import {
   formatYmd,
   formatDateTime,
@@ -9,6 +10,8 @@ import {
 } from "@/lib/datetime";
 
 export const dynamic = "force-dynamic";
+
+const EMPTY_JOB_ID = "00000000-0000-0000-0000-000000000000";
 
 function getHoursWorked(
   signedAt: string | null,
@@ -54,7 +57,7 @@ function autoFitColumns(rows: Record<string, unknown>[]) {
 }
 
 export async function GET(request: Request) {
-  await requireViewerAdmin();
+  const profile = await requireViewerAdmin();
 
   const { searchParams } = new URL(request.url);
 
@@ -64,6 +67,24 @@ export async function GET(request: Request) {
   const worker = searchParams.get("worker")?.trim() ?? "";
 
   const supabase = await createClient();
+  const isSuperAdmin = profile.role === "super_admin";
+  const { jobs, error: jobsError } = await getAccessibleJobsForAdmin(
+    supabase,
+    profile.id,
+    profile.role,
+    { includeInactive: true }
+  );
+
+  if (jobsError) {
+    return NextResponse.json({ error: jobsError.message }, { status: 500 });
+  }
+
+  const accessibleJobIds = jobs.map((job) => job.id);
+  const selectedJob = jobs.find((job) => job.id === jobId);
+
+  if (jobId && !selectedJob && !isSuperAdmin) {
+    return NextResponse.json({ error: "Job not found." }, { status: 404 });
+  }
 
   let query = supabase
     .from("checkins")
@@ -84,6 +105,13 @@ export async function GET(request: Request) {
     `)
     .order("checkin_date", { ascending: false })
     .order("signed_at", { ascending: false });
+
+  if (!isSuperAdmin) {
+    query =
+      accessibleJobIds.length > 0
+        ? query.in("job_id", accessibleJobIds)
+        : query.eq("job_id", EMPTY_JOB_ID);
+  }
 
   if (startDate) {
     query = query.gte("checkin_date", startDate);
@@ -149,7 +177,13 @@ export async function GET(request: Request) {
     },
     {
       Field: "Job Filter",
-      Value: jobId || "All",
+      Value: selectedJob
+        ? selectedJob.job_number
+          ? `${selectedJob.job_number} - ${selectedJob.name}`
+          : selectedJob.name
+        : isSuperAdmin
+        ? jobId || "All"
+        : "All assigned jobs",
     },
     {
       Field: "Worker Filter",
