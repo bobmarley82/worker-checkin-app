@@ -318,7 +318,138 @@ export default async function AdminJobsPage() {
               : "No jobs are assigned to you yet."}
           </p>
         ) : (
-          <div className="admin-table-wrap mt-5">
+          <>
+            <div className="mt-5 space-y-3 md:hidden">
+              {jobsSortedByCreatedAt.map((job) => {
+                const qrLink = `${appUrl}/checkin?job=${job.id}`;
+                const reportHref = `/admin/forms/daily-report?job=${job.id}&date=${today}&mode=auto`;
+
+                return (
+                  <div key={job.id} className="admin-stat-card space-y-4 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="admin-subtle text-xs">
+                          Job #{job.job_number ?? "-"}
+                        </p>
+                        <Link
+                          href={`/admin/jobs/${job.id}`}
+                          className="mt-1 block text-lg font-semibold text-slate-900"
+                        >
+                          {job.name}
+                        </Link>
+                      </div>
+
+                      <span
+                        className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                          job.is_active
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-200 text-gray-700"
+                        }`}
+                      >
+                        {job.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-600">
+                      Created{" "}
+                      <span className="font-medium text-slate-900">
+                        {job.created_at
+                          ? new Date(job.created_at).toLocaleDateString()
+                          : "-"}
+                      </span>
+                    </div>
+
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {job.is_active ? (
+                        <Link
+                          href={reportHref}
+                          className="admin-action-subtle w-full text-sm"
+                        >
+                          Create Report
+                        </Link>
+                      ) : (
+                        <div className="rounded-full border border-dashed border-slate-200 px-4 py-3 text-center text-sm text-slate-400">
+                          Report unavailable
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/admin/jobs/${job.id}/qr`}
+                          className="admin-action-subtle flex-1 text-sm"
+                        >
+                          QR
+                        </Link>
+
+                        <div className="flex-1">
+                          <CopyQrLinkButton url={qrLink} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {isSuperAdmin ? (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {job.is_active ? (
+                          <form action={deactivateJob} className="w-full">
+                            <input type="hidden" name="job_id" value={job.id} />
+                            <button
+                              type="submit"
+                              className="w-full rounded-full border border-yellow-400 px-3 py-2 text-sm text-yellow-700 hover:bg-yellow-50"
+                            >
+                              Deactivate
+                            </button>
+                          </form>
+                        ) : (
+                          <form action={reactivateJob} className="w-full">
+                            <input type="hidden" name="job_id" value={job.id} />
+                            <button
+                              type="submit"
+                              className="w-full rounded-full border border-green-400 px-3 py-2 text-sm text-green-700 hover:bg-green-50"
+                            >
+                              Reactivate
+                            </button>
+                          </form>
+                        )}
+
+                        <details className="relative">
+                          <summary className="cursor-pointer rounded-full border border-red-400 px-3 py-2 text-center text-sm text-red-700 hover:bg-red-50">
+                            Delete
+                          </summary>
+
+                          <form
+                            action={deleteJob}
+                            className="mt-2 space-y-2 rounded-xl border border-red-100 bg-white p-3 shadow"
+                          >
+                            <input type="hidden" name="job_id" value={job.id} />
+
+                            <p className="text-sm text-slate-700">
+                              Confirm password to delete job.
+                            </p>
+
+                            <input
+                              type="password"
+                              name="password"
+                              placeholder="Admin password"
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                              required
+                            />
+
+                            <button
+                              type="submit"
+                              className="w-full rounded-full bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700"
+                            >
+                              Confirm Delete
+                            </button>
+                          </form>
+                        </details>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="admin-table-wrap mt-5 hidden md:block">
             <table className="admin-table min-w-full border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-sm text-gray-700">
@@ -460,7 +591,8 @@ export default async function AdminJobsPage() {
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>

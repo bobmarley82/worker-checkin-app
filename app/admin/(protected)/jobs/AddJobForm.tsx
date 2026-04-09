@@ -18,27 +18,46 @@ export default function AddJobForm({
   const [state, formAction, pending] = useActionState(action, null);
 
   return (
-    <form action={formAction} className="mt-4 space-y-2">
-      <div className="flex gap-3">
-        <input
-          type="text"
-          name="name"
-          placeholder="Enter job name"
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
-          required
-        />
-        <input
-          type="text"
-          name="job_number"
-          placeholder="Job number"
-          className="rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
-          required
-        />
+    <form action={formAction} className="mt-4 space-y-4">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1.35fr)_minmax(0,0.8fr)_auto] md:items-end">
+        <div className="space-y-1.5">
+          <label
+            htmlFor="add-job-name"
+            className="block text-sm font-medium text-slate-900"
+          >
+            Job name
+          </label>
+          <input
+            id="add-job-name"
+            type="text"
+            name="name"
+            placeholder="Enter job name"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+            required
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label
+            htmlFor="add-job-number"
+            className="block text-sm font-medium text-slate-900"
+          >
+            Job number
+          </label>
+          <input
+            id="add-job-number"
+            type="text"
+            name="job_number"
+            placeholder="Job number"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+            required
+          />
+        </div>
 
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-black px-4 py-2 text-white hover:opacity-90 disabled:opacity-50"
+          className="admin-action-primary w-full md:w-auto disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pending ? "Adding..." : "Add Job"}
         </button>

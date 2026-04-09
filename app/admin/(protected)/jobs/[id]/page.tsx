@@ -551,13 +551,15 @@ export default async function JobDetailPage({
               No Field Supervisors are assigned to this job yet.
             </p>
           ) : (
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {viewerAdmins.map((viewerAdmin) => (
                 <span
                   key={viewerAdmin.id}
-                  className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-900"
+                  className="inline-flex min-w-0 items-center rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium text-gray-900"
                 >
-                  {viewerAdmin.full_name ?? "Field Supervisor"}
+                  <span className="truncate">
+                    {viewerAdmin.full_name ?? "Field Supervisor"}
+                  </span>
                 </span>
               ))}
             </div>
@@ -577,37 +579,75 @@ export default async function JobDetailPage({
               No daily reports found for this date range.
             </p>
           ) : (
-            <div className="admin-table-wrap mt-4">
-              <table className="admin-table min-w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200 text-left text-sm text-gray-700">
-                  <th className="px-4 py-3 font-semibold">Date Created</th>
-                  <th className="px-4 py-3 font-semibold">Submitted By</th>
-                  <th className="px-4 py-3 font-semibold">View</th>
-                </tr>
-              </thead>
-              <tbody>
+            <>
+              <div className="mt-4 space-y-3 md:hidden">
                 {reports.map((report) => (
-                  <tr key={report.id} className="border-b border-gray-100 text-sm">
-                    <td className="px-4 py-3 text-gray-900">
-                      {formatDateTime(report.created_at)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-900">
-                      {report.admin_name}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/admin/forms/daily-report/submissions/${report.id}`}
-                          className="rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-50"
-                        >
-                          Open
-                        </Link>
-                      </td>
+                  <div
+                    key={report.id}
+                    className="rounded-xl border border-gray-200 bg-gray-50 p-4"
+                  >
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                          Date Created
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-gray-900">
+                          {formatDateTime(report.created_at)}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                          Submitted By
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-gray-900">
+                          {report.admin_name}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Link
+                      href={`/admin/forms/daily-report/submissions/${report.id}`}
+                      className="admin-action-secondary mt-4 w-full text-sm"
+                    >
+                      Open
+                    </Link>
+                  </div>
+                ))}
+              </div>
+
+              <div className="admin-table-wrap mt-4 hidden md:block">
+                <table className="admin-table min-w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-200 text-left text-sm text-gray-700">
+                      <th className="px-4 py-3 font-semibold">Date Created</th>
+                      <th className="px-4 py-3 font-semibold">Submitted By</th>
+                      <th className="px-4 py-3 font-semibold">View</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {reports.map((report) => (
+                      <tr key={report.id} className="border-b border-gray-100 text-sm">
+                        <td className="px-4 py-3 text-gray-900">
+                          {formatDateTime(report.created_at)}
+                        </td>
+                        <td className="px-4 py-3 text-gray-900">
+                          {report.admin_name}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/admin/forms/daily-report/submissions/${report.id}`}
+                            className="rounded-lg border border-gray-300 px-3 py-2 hover:bg-gray-50"
+                          >
+                            Open
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

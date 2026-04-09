@@ -31,7 +31,7 @@ export default function LoginForm() {
       return;
     }
 
-    router.push("/admin/records");
+    router.push("/admin/jobs");
     router.refresh();
   }
   return (

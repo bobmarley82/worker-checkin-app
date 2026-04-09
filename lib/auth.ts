@@ -56,7 +56,7 @@ export async function requireSuperAdmin() {
   const { profile } = await getAdminProfile();
 
   if (profile.role !== "super_admin") {
-    redirect("/admin/records");
+    redirect("/admin/jobs");
   }
 
   return profile;

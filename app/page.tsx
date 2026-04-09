@@ -27,12 +27,6 @@ export default function HomePage() {
                 A cleaner way to handle worker sign-ins, job reporting, and field
                 coordination from one place.
               </p>
-
-              <div className="mt-6 flex flex-wrap gap-3 text-sm text-slate-700">
-                <span className="admin-chip">Worker Check-In</span>
-                <span className="admin-chip">Daily Reports</span>
-                <span className="admin-chip">Admin Dashboard</span>
-              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
