@@ -7,7 +7,6 @@ import { formatYmd, formatDateTime } from "@/lib/datetime";
 import {
   DAILY_REPORT_SAFETY_FIELDS,
   formatDailyReportSafetyAnswer,
-  parsePhotoData,
   parseDailyReportSafetyChecklist,
   formatWorkerSignedTime,
   parseDailyReportIssues,
@@ -15,6 +14,7 @@ import {
 } from "@/lib/dailyReports";
 import { adminCanAccessJob } from "@/lib/adminJobs";
 import { parseDailyWeatherSnapshot } from "@/lib/weather";
+import { resolveDailyReportPhotos } from "@/lib/dailyReportPhotos";
 
 type DailyReportDetailPageProps = {
   params: Promise<{
@@ -55,7 +55,7 @@ export default async function DailyReportDetailPage({
   const workerSummary = parseDailyReportWorkerSummary(report.worker_summary);
   const issues = parseDailyReportIssues(report.issues);
   const safetyChecklist = parseDailyReportSafetyChecklist(report.safety_checklist);
-  const photoData = parsePhotoData(report.photo_data);
+  const photos = await resolveDailyReportPhotos(report.photo_data);
   const weatherSnapshot = parseDailyWeatherSnapshot(report.weather_snapshot);
 
   return (
@@ -136,7 +136,7 @@ export default async function DailyReportDetailPage({
 
         <div className="admin-stat-card p-5">
           <p className="admin-subtle text-sm">Photos</p>
-          <p className="mt-2 text-2xl font-bold">{photoData.length}</p>
+          <p className="mt-2 text-2xl font-bold">{photos.length}</p>
         </div>
       </div>
 
@@ -366,17 +366,17 @@ export default async function DailyReportDetailPage({
       <div className="admin-card p-6 sm:p-7">
         <h2 className="admin-title text-xl font-semibold">Photos</h2>
 
-        {photoData.length === 0 ? (
+        {photos.length === 0 ? (
           <p className="mt-4 text-gray-800">No photos were attached.</p>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {photoData.map((photo, index) => (
+            {photos.map((photo, index) => (
               <div
-                key={`${index}-${photo.slice(0, 32)}`}
+                key={photo.key}
                 className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-50"
               >
                 <Image
-                  src={photo}
+                  src={photo.src}
                   alt={`Daily report photo ${index + 1}`}
                   width={1200}
                   height={900}

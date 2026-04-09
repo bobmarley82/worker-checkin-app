@@ -38,7 +38,7 @@ export default function WorkerNameInput({
 
   return (
     <div className="relative">
-      <label htmlFor={inputId} className="block text-sm font-medium">
+      <label htmlFor={inputId} className="block text-sm font-medium text-slate-900">
         {label}
       </label>
 
@@ -57,13 +57,13 @@ export default function WorkerNameInput({
         }}
         placeholder={placeholder}
         autoComplete="off"
-        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+        className="mt-2 w-full rounded-xl border border-[rgba(122,95,60,0.16)] bg-white/90 px-3 py-3 outline-none focus:border-black"
         style={{ textTransform: "capitalize" }}
         required
       />
 
       {showSuggestions && suggestions.length > 0 ? (
-        <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-2xl border border-[rgba(122,95,60,0.14)] bg-white shadow-lg">
           {suggestions.map((name) => (
             <button
               key={name}
@@ -73,7 +73,7 @@ export default function WorkerNameInput({
                 setValue(name);
                 setShowSuggestions(false);
               }}
-              className="block w-full px-3 py-2 text-left text-sm text-gray-900 hover:bg-gray-50"
+              className="block w-full px-3 py-3 text-left text-sm text-gray-900 hover:bg-[rgba(247,244,237,0.8)]"
             >
               {name}
             </button>

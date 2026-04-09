@@ -77,7 +77,7 @@ export default function SignatureField({
     <div>
       <div
         ref={containerRef}
-        className="mt-1 overflow-hidden rounded-lg border border-gray-300 bg-white"
+        className="mt-2 overflow-hidden rounded-2xl border border-[rgba(122,95,60,0.16)] bg-white shadow-sm"
       >
         <SignatureCanvas
           key={`${canvasSize.width}-${canvasSize.height}`}
@@ -98,7 +98,7 @@ export default function SignatureField({
         <button
           type="button"
           onClick={clearSignature}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          className="worker-action-secondary w-auto px-4 py-2 text-sm font-semibold"
         >
           Clear Signature
         </button>

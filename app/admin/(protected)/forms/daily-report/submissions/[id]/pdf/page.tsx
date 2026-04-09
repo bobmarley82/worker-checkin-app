@@ -12,10 +12,10 @@ import {
   parseDailyReportIssues,
   parseDailyReportSafetyChecklist,
   parseDailyReportWorkerSummary,
-  parsePhotoData,
 } from "@/lib/dailyReports";
 import { parseDailyWeatherSnapshot } from "@/lib/weather";
 import PrintDailyReportButton from "./PrintDailyReportButton";
+import { resolveDailyReportPhotos } from "@/lib/dailyReportPhotos";
 
 type DailyReportPdfPageProps = {
   params: Promise<{
@@ -62,7 +62,7 @@ export default async function DailyReportPdfPage({
   const workerSummary = parseDailyReportWorkerSummary(report.worker_summary);
   const issues = parseDailyReportIssues(report.issues);
   const safetyChecklist = parseDailyReportSafetyChecklist(report.safety_checklist);
-  const photoData = parsePhotoData(report.photo_data);
+  const photos = await resolveDailyReportPhotos(report.photo_data);
   const weatherSnapshot = parseDailyWeatherSnapshot(report.weather_snapshot);
 
   return (
@@ -216,7 +216,7 @@ export default async function DailyReportPdfPage({
                 Photos
               </p>
               <p className="mt-1 text-xl font-bold text-slate-950">
-                {photoData.length}
+                {photos.length}
               </p>
             </div>
           </section>
@@ -443,17 +443,17 @@ export default async function DailyReportPdfPage({
             )}
           </section>
 
-          {photoData.length > 0 ? (
+          {photos.length > 0 ? (
             <section className="mt-4 rounded-2xl border border-slate-200 p-4 print:break-inside-avoid">
               <h2 className="text-base font-semibold text-slate-950">Photos</h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                {photoData.map((photo, index) => (
+                {photos.map((photo, index) => (
                   <div
-                    key={`${index}-${photo.slice(0, 32)}`}
+                    key={photo.key}
                     className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
                   >
                     <Image
-                      src={photo}
+                      src={photo.src}
                       alt={`Daily report photo ${index + 1}`}
                       width={1200}
                       height={900}

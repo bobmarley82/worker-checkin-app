@@ -14,13 +14,16 @@ import {
   buildDailyReportWorkerSummary,
   DAILY_REPORT_SAFETY_FIELDS,
   parseDailyReportIssues,
-  parsePhotoData,
 } from "@/lib/dailyReports";
 import {
   adminCanAccessJob,
   getAccessibleJobsForAdmin,
 } from "@/lib/adminJobs";
 import { getDailyWeatherForJob } from "@/lib/weather";
+import {
+  removeDailyReportPhotos,
+  uploadDailyReportPhotos,
+} from "@/lib/dailyReportPhotos";
 
 export const dynamic = "force-dynamic";
 
@@ -83,9 +86,9 @@ async function submitDailyReport(formData: FormData) {
   const equipmentNotes = String(formData.get("equipment_notes") ?? "").trim();
   const materialDelivery = String(formData.get("material_delivery") ?? "").trim();
   const manpowerNotes = String(formData.get("manpower_notes") ?? "").trim();
-  const photoDataJson = String(formData.get("photo_data_json") ?? "[]");
   const signatureData = String(formData.get("signature_data") ?? "").trim();
   const safetyChecklist = buildDailyReportSafetyChecklist(formData);
+  const photoFiles = formData.getAll("photos");
 
   if (!jobId) {
     redirect(
@@ -221,7 +224,6 @@ async function submitDailyReport(formData: FormData) {
     totalHours = Math.round(manualTotalHours * 100) / 100;
   }
 
-  let photoData: string[] = [];
   let issues: string[] = [];
 
   try {
@@ -237,27 +239,35 @@ async function submitDailyReport(formData: FormData) {
     );
   }
 
+  const { snapshot: weatherSnapshot } = await getDailyWeatherForJob(
+    jobRow,
+    reportDate
+  );
+
+  const reportId = crypto.randomUUID();
+
+  let photoData = [];
+
   try {
-    photoData = parsePhotoData(JSON.parse(photoDataJson));
-  } catch {
+    photoData = await uploadDailyReportPhotos(reportId, photoFiles);
+  } catch (caughtError) {
     redirect(
       buildRedirect({
         date: reportDate,
-        error: "One or more photos could not be processed.",
+        error:
+          caughtError instanceof Error
+            ? caughtError.message
+            : "One or more photos could not be uploaded.",
         job: jobId,
         mode: workerCountSource,
       })
     );
   }
 
-  const { snapshot: weatherSnapshot } = await getDailyWeatherForJob(
-    jobRow,
-    reportDate
-  );
-
-  const { data: insertedReport, error: insertError } = await supabase
+  const { error: insertError } = await supabase
     .from("daily_reports")
     .insert({
+      id: reportId,
       admin_id: profile.id,
       admin_name: profile.full_name ?? "Admin",
       job_id: jobRow.id,
@@ -278,11 +288,11 @@ async function submitDailyReport(formData: FormData) {
       worker_count_source: workerCountSource,
       worker_summary: workerSummary,
       weather_snapshot: weatherSnapshot,
-    })
-    .select("id")
-    .single();
+    });
 
-  if (insertError || !insertedReport) {
+  if (insertError) {
+    await removeDailyReportPhotos(photoData.map((photo) => photo.path));
+
     redirect(
       buildRedirect({
         date: reportDate,
@@ -302,7 +312,7 @@ async function submitDailyReport(formData: FormData) {
       date: reportDate,
       job: jobId,
       mode: workerCountSource,
-      reportId: insertedReport.id,
+      reportId,
       success: true,
     })
   );

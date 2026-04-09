@@ -25,62 +25,60 @@ export default async function CheckinChoicePage({
   const selectedJob = jobs?.find((job) => job.id === jobId) ?? null;
 
   return (
-    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow text-center">
-        
-        {/* Logo */}
-        <div className="flex justify-center mb-4">
-          <Image
-            src="/ICBILogo.png"
-            alt="Ironwood Commercial Builders Inc."
-            width={300}
-            height={120}
-            className="h-auto w-[260px] object-contain"
-            priority
-          />
-        </div>
-
-        {/* Title */}
-        <h1 className="text-2xl font-bold">Worker Check-In</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Choose whether you want to sign in or sign out.
-        </p>
-
-        {/* Job status */}
-        {selectedJob ? (
-          <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-            Job selected from QR code:{" "}
-            <span className="font-semibold">{selectedJob.name}</span>
+    <main className="worker-shell flex min-h-screen items-center px-4 py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-lg">
+        <section className="worker-panel p-6 text-center sm:p-8">
+          <div className="flex justify-center">
+            <Image
+              src="/ICBILogo.png"
+              alt="Ironwood Commercial Builders Inc."
+              width={280}
+              height={112}
+              className="h-auto w-[220px] object-contain sm:w-[250px]"
+              priority
+            />
           </div>
-        ) : (
-          <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-            No job was selected from a QR code.
+
+          <p className="admin-kicker mt-6">Worker Access</p>
+          <h1 className="admin-title mt-3 text-3xl font-bold">Choose Your Action</h1>
+          <p className="admin-copy mt-3 text-sm sm:text-base">
+            Start by selecting whether you want to sign in or sign out.
+          </p>
+
+          {selectedJob ? (
+            <div className="worker-status-success mt-5 rounded-2xl px-4 py-3 text-sm">
+              Job selected from QR code:{" "}
+              <span className="font-semibold">{selectedJob.name}</span>
+            </div>
+          ) : (
+            <div className="worker-status-warning mt-5 rounded-2xl px-4 py-3 text-sm">
+              No job was selected from a QR code. You can still continue and
+              choose the job on the next screen.
+            </div>
+          )}
+
+          <div className="mt-6 space-y-3">
+            <Link
+              href={jobId ? `/checkin/sign-in?job=${jobId}` : "/checkin/sign-in"}
+              className="worker-action-primary"
+            >
+              Sign In
+            </Link>
+
+            <Link
+              href={jobId ? `/checkin/sign-out?job=${jobId}` : "/checkin/sign-out"}
+              className="worker-action-secondary"
+            >
+              Sign Out
+            </Link>
           </div>
-        )}
 
-        {/* Buttons */}
-        <div className="mt-6 space-y-3">
-          <Link
-            href={jobId ? `/checkin/sign-in?job=${jobId}` : "/checkin/sign-in"}
-            className="block w-full rounded-lg bg-green-600 px-4 py-3 text-white font-medium hover:opacity-90"
-          >
-            Sign In
-          </Link>
-
-          <Link
-            href={jobId ? `/checkin/sign-out?job=${jobId}` : "/checkin/sign-out"}
-            className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 font-medium hover:bg-gray-50"
-          >
-            Sign Out
-          </Link>
-
-          <Link
-            href="/"
-            className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 font-medium hover:bg-gray-50"
-          >
-            Go Back
-          </Link>
-        </div>
+          <div className="mt-5 text-sm">
+            <Link href="/" className="admin-subtle hover:text-slate-900">
+              Back to Home
+            </Link>
+          </div>
+        </section>
       </div>
     </main>
   );

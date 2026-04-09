@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -162,7 +163,8 @@ async function submitSignOut(formData: FormData) {
   let resolvedWorkerName = requestedWorkerName;
 
   const exactCandidate = sameNameCandidates.find(
-    (name) => normalizeWorkerNameKey(name) === normalizeWorkerNameKey(requestedWorkerName)
+    (name) =>
+      normalizeWorkerNameKey(name) === normalizeWorkerNameKey(requestedWorkerName)
   );
 
   if (exactCandidate) {
@@ -171,7 +173,8 @@ async function submitSignOut(formData: FormData) {
     resolvedWorkerName = sameNameCandidates[0];
   } else if (sameNameCandidates.length > 1) {
     const selectedCandidate = sameNameCandidates.find(
-      (name) => normalizeWorkerNameKey(name) === normalizeWorkerNameKey(selectedWorkerName)
+      (name) =>
+        normalizeWorkerNameKey(name) === normalizeWorkerNameKey(selectedWorkerName)
     );
 
     if (!selectedCandidate) {
@@ -243,21 +246,21 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
 
   if (isSuccess) {
     return (
-      <main className="min-h-screen bg-gray-50 p-6">
-        <div className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow">
+      <main className="worker-shell px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-md worker-panel p-6 sm:p-8">
           <div className="text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-2xl">
-              ✓
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-800">
+              OK
             </div>
 
-            <h1 className="mt-4 text-2xl font-bold">You&#39;re Signed Out</h1>
+            <h1 className="admin-title mt-4 text-3xl font-bold">You&#39;re Signed Out</h1>
 
-            <p className="mt-2 text-sm text-gray-800">
+            <p className="admin-copy mt-2 text-sm">
               Your sign-out was submitted successfully.
             </p>
           </div>
 
-          <div className="mt-6 space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm">
+          <div className="worker-card mt-6 space-y-3 p-4 text-sm">
             <div>
               <span className="font-medium text-gray-900">Name:</span>{" "}
               <span className="text-gray-900">{params.worker_name ?? "-"}</span>
@@ -280,16 +283,13 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
           </div>
 
           <div className="mt-6 space-y-3">
-            <Link
-              href="/"
-              className="block w-full rounded-lg bg-blue-600 px-4 py-3 text-center text-white hover:bg-blue-700"
-            >
+            <Link href="/" className="worker-action-primary">
               Done
             </Link>
 
             <Link
               href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}
-              className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
+              className="worker-action-secondary"
             >
               Back
             </Link>
@@ -319,22 +319,36 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
     jobs?.find((job) => job.id === preselectedJobId) ?? null;
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-xl rounded-2xl bg-white p-6 shadow">
-        <h1 className="text-2xl font-bold">Worker Sign Out</h1>
-        <p className="mt-2 text-sm text-gray-800">
+    <main className="worker-shell px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-2xl worker-panel p-6 sm:p-8">
+        <div className="flex justify-center">
+          <Image
+            src="/ICBILogo.png"
+            alt="Ironwood Commercial Builders Inc."
+            width={280}
+            height={112}
+            className="h-auto w-[220px] object-contain sm:w-[250px]"
+            priority
+          />
+        </div>
+
+        <p className="admin-kicker mt-6 text-center">Worker Access</p>
+        <h1 className="admin-title mt-3 text-center text-3xl font-bold">
+          Worker Sign Out
+        </h1>
+        <p className="admin-copy mt-3 text-center text-sm sm:text-base">
           Complete the form below to sign out.
         </p>
 
         {selectedJob ? (
-          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <div className="worker-status-info mt-5 rounded-2xl px-4 py-3 text-sm">
             Job selected from QR code:{" "}
             <span className="font-semibold">{selectedJob.name}</span>
           </div>
         ) : null}
 
         {errorMessage ? (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="worker-status-error mt-5 rounded-2xl px-4 py-3 text-sm">
             {errorMessage}
           </div>
         ) : null}
@@ -354,7 +368,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
             />
 
             {candidateNames.length > 1 ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+              <div className="worker-status-warning rounded-2xl p-4 text-sm">
                 <p className="font-medium">
                   There are multiple open sign-ins for this name on this job.
                   Choose yours.
@@ -364,7 +378,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
                   {candidateNames.map((candidate) => (
                     <label
                       key={candidate}
-                      className="flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2"
+                      className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-3"
                     >
                       <input
                         type="radio"
@@ -380,13 +394,16 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
             ) : null}
 
             <div>
-              <label htmlFor="job_id" className="block text-sm font-medium">
+              <label
+                htmlFor="job_id"
+                className="block text-sm font-medium text-slate-900"
+              >
                 Job
               </label>
               <select
                 id="job_id"
                 name="job_id"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
+                className="mt-2 w-full rounded-xl border border-[rgba(122,95,60,0.16)] bg-white/90 px-3 py-3 outline-none focus:border-black"
                 defaultValue={selectedJob?.id ?? ""}
                 required
               >
@@ -409,7 +426,9 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
             </div>
 
             <div>
-              <span className="block text-sm font-medium">Are you injured?</span>
+              <span className="block text-sm font-medium text-slate-900">
+                Are you injured?
+              </span>
               <div className="mt-2 flex gap-6">
                 <label className="flex items-center gap-2">
                   <input type="radio" name="injured" value="false" defaultChecked />
@@ -423,7 +442,9 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium">Signature</label>
+              <label className="block text-sm font-medium text-slate-900">
+                Signature
+              </label>
               <p className="mt-1 text-sm text-gray-700">
                 Sign inside the box below to confirm sign out.
               </p>
@@ -437,7 +458,7 @@ export default async function SignOutPage({ searchParams }: SignOutPageProps) {
             <div className="mt-4">
               <Link
                 href={preselectedJobId ? `/checkin?job=${preselectedJobId}` : "/checkin"}
-                className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-center text-gray-900 hover:bg-gray-50"
+                className="worker-action-secondary"
               >
                 Back
               </Link>

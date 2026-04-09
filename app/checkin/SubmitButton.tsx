@@ -13,19 +13,16 @@ export default function SubmitButton({
 }: SubmitButtonProps) {
   const { pending } = useFormStatus();
 
-  const baseClasses =
-    "block w-full rounded-lg px-4 py-3 text-white font-medium transition";
-
   const variantClasses =
     variant === "checkout"
-      ? "bg-red-700 hover:bg-red-800"
-      : "bg-green-600 hover:bg-green-700";
+      ? "bg-[linear-gradient(135deg,#9a3b32,#7d2b24)] shadow-[0_14px_24px_rgba(125,43,36,0.2)]"
+      : "bg-[linear-gradient(135deg,#1d6b57,#154c41)] shadow-[0_14px_24px_rgba(21,76,65,0.18)]";
 
   return (
     <button
       type="submit"
       disabled={pending}
-      className={`${baseClasses} ${variantClasses} ${
+      className={`block w-full rounded-2xl border border-black/10 px-4 py-3 text-white font-semibold transition ${variantClasses} ${
         pending ? "opacity-70 cursor-not-allowed" : ""
       }`}
     >
