@@ -1,22 +1,9 @@
-
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireViewerAdmin, requireSuperAdmin } from "@/lib/auth";
 import { getAccessibleJobsForAdmin } from "@/lib/adminJobs";
 import DeleteCheckinButton from "./DeleteCheckinButton";
-
-export const dynamic = "force-dynamic";
-
-type AdminRecordsPageProps = {
-  searchParams: Promise<{
-    start_date?: string;
-    end_date?: string;
-    job_id?: string;
-    worker?: string;
-  }>;
-};
-
 import {
   formatYmd,
   formatDateTime,
@@ -25,6 +12,20 @@ import {
   getLast7DaysStartYmd,
   getLast30DaysStartYmd,
 } from "@/lib/datetime";
+
+export const dynamic = "force-dynamic";
+
+const RECORDS_PAGE_SIZE = 25;
+
+type AdminRecordsPageProps = {
+  searchParams: Promise<{
+    start_date?: string;
+    end_date?: string;
+    job_id?: string;
+    page?: string;
+    worker?: string;
+  }>;
+};
 
 async function deleteCheckin(
   prevState: { error?: string; success?: string },
@@ -73,14 +74,19 @@ export default async function AdminRecordsPage({
 
   const startDate =
     query.start_date && query.start_date.trim() ? query.start_date : today;
-
   const endDate =
     query.end_date && query.end_date.trim() ? query.end_date : startDate;
 
   const normalizedStartDate = startDate <= endDate ? startDate : endDate;
   const normalizedEndDate = startDate <= endDate ? endDate : startDate;
+  const currentPage = Math.max(
+    1,
+    Number.parseInt(query.page?.trim() ?? "1", 10) || 1
+  );
   const selectedJobId = query.job_id?.trim() ?? "";
   const workerSearch = query.worker?.trim() ?? "";
+  const rangeFrom = (currentPage - 1) * RECORDS_PAGE_SIZE;
+  const rangeTo = rangeFrom + RECORDS_PAGE_SIZE - 1;
 
   const { jobs, error: jobsError } = await getAccessibleJobsForAdmin(
     supabase,
@@ -90,7 +96,7 @@ export default async function AdminRecordsPage({
   );
   const accessibleJobIds = jobs.map((job) => job.id);
 
-  let checkinsQuery = supabase
+  let pagedCheckinsQuery = supabase
     .from("checkins")
     .select(
       `
@@ -109,71 +115,121 @@ export default async function AdminRecordsPage({
         name,
         job_number
       )
-    `
+    `,
+      { count: "exact" }
     )
+    .range(rangeFrom, rangeTo)
     .gte("checkin_date", normalizedStartDate)
     .lte("checkin_date", normalizedEndDate)
     .order("checkin_date", { ascending: false })
     .order("signed_at", { ascending: false });
 
+  let injuredCountQuery = supabase
+    .from("checkins")
+    .select("id", { count: "exact", head: true })
+    .gte("checkin_date", normalizedStartDate)
+    .lte("checkin_date", normalizedEndDate)
+    .eq("injured", true);
+
+  let openCountQuery = supabase
+    .from("checkins")
+    .select("id", { count: "exact", head: true })
+    .gte("checkin_date", normalizedStartDate)
+    .lte("checkin_date", normalizedEndDate)
+    .is("signed_out_at", null);
+
+  let uniqueWorkersQuery = supabase
+    .from("checkins")
+    .select("worker_name")
+    .gte("checkin_date", normalizedStartDate)
+    .lte("checkin_date", normalizedEndDate);
+
   if (!isSuperAdmin) {
-    checkinsQuery =
-      accessibleJobIds.length > 0
-        ? checkinsQuery.in("job_id", accessibleJobIds)
-        : checkinsQuery.eq("job_id", "00000000-0000-0000-0000-000000000000");
+    if (accessibleJobIds.length > 0) {
+      pagedCheckinsQuery = pagedCheckinsQuery.in("job_id", accessibleJobIds);
+      injuredCountQuery = injuredCountQuery.in("job_id", accessibleJobIds);
+      openCountQuery = openCountQuery.in("job_id", accessibleJobIds);
+      uniqueWorkersQuery = uniqueWorkersQuery.in("job_id", accessibleJobIds);
+    } else {
+      const emptyJobId = "00000000-0000-0000-0000-000000000000";
+      pagedCheckinsQuery = pagedCheckinsQuery.eq("job_id", emptyJobId);
+      injuredCountQuery = injuredCountQuery.eq("job_id", emptyJobId);
+      openCountQuery = openCountQuery.eq("job_id", emptyJobId);
+      uniqueWorkersQuery = uniqueWorkersQuery.eq("job_id", emptyJobId);
+    }
   }
 
   if (selectedJobId) {
-    checkinsQuery = checkinsQuery.eq("job_id", selectedJobId);
+    pagedCheckinsQuery = pagedCheckinsQuery.eq("job_id", selectedJobId);
+    injuredCountQuery = injuredCountQuery.eq("job_id", selectedJobId);
+    openCountQuery = openCountQuery.eq("job_id", selectedJobId);
+    uniqueWorkersQuery = uniqueWorkersQuery.eq("job_id", selectedJobId);
   }
 
   if (workerSearch) {
-    checkinsQuery = checkinsQuery.ilike("worker_name", `%${workerSearch}%`);
+    pagedCheckinsQuery = pagedCheckinsQuery.ilike("worker_name", `%${workerSearch}%`);
+    injuredCountQuery = injuredCountQuery.ilike("worker_name", `%${workerSearch}%`);
+    openCountQuery = openCountQuery.ilike("worker_name", `%${workerSearch}%`);
+    uniqueWorkersQuery = uniqueWorkersQuery.ilike("worker_name", `%${workerSearch}%`);
   }
 
-  const { data: checkins, error: checkinsError } = await checkinsQuery;
+  const [
+    { data: checkins, error: checkinsError, count: totalSigninsCount },
+    { count: injuredCountValue },
+    { count: openCountValue },
+    { data: uniqueWorkerRows },
+  ] = await Promise.all([
+    pagedCheckinsQuery,
+    injuredCountQuery,
+    openCountQuery,
+    uniqueWorkersQuery,
+  ]);
 
-  const totalSignins = checkins?.length ?? 0;
+  const totalSignins = totalSigninsCount ?? 0;
   const uniqueWorkers = new Set(
-    checkins?.map((checkin) => checkin.worker_name) ?? []
+    (uniqueWorkerRows ?? []).map((checkin) => checkin.worker_name)
   ).size;
-  const injuredCount =
-    checkins?.filter((checkin) => checkin.injured).length ?? 0;
-  const openCount =
-    checkins?.filter((checkin) => !checkin.signed_out_at).length ?? 0;
-
+  const injuredCount = injuredCountValue ?? 0;
+  const openCount = openCountValue ?? 0;
+  const totalPages =
+    totalSignins > 0 ? Math.ceil(totalSignins / RECORDS_PAGE_SIZE) : 1;
+  const pageStart = totalSignins === 0 ? 0 : rangeFrom + 1;
+  const pageEnd = totalSignins === 0 ? 0 : rangeFrom + (checkins?.length ?? 0);
   const isSingleDay = normalizedStartDate === normalizedEndDate;
 
-  const selectedJob = jobs?.find((job) => job.id === selectedJobId);
+  const selectedJob = jobs.find((job) => job.id === selectedJobId);
   const selectedJobName = selectedJob
     ? selectedJob.job_number
       ? `${selectedJob.job_number} - ${selectedJob.name}`
       : selectedJob.name
     : "";
 
-  const rangeBase = `/admin/records`;
-
-  const buildRangeLink = (
-    start: string,
-    end: string,
-    jobId?: string,
-    worker?: string
-  ) => {
-    const params = new URLSearchParams({
-      start_date: start,
-      end_date: end,
+  function buildRecordsHref(params: {
+    endDate: string;
+    jobId?: string;
+    page?: number;
+    startDate: string;
+    worker?: string;
+  }) {
+    const searchParams = new URLSearchParams({
+      start_date: params.startDate,
+      end_date: params.endDate,
     });
 
-    if (jobId) {
-      params.set("job_id", jobId);
+    if (params.jobId) {
+      searchParams.set("job_id", params.jobId);
     }
 
-    if (worker) {
-      params.set("worker", worker);
+    if (params.worker) {
+      searchParams.set("worker", params.worker);
     }
 
-    return `${rangeBase}?${params.toString()}`;
-  };
+    if (params.page && params.page > 1) {
+      searchParams.set("page", String(params.page));
+    }
+
+    return `/admin/records?${searchParams.toString()}`;
+  }
 
   const exportParams = new URLSearchParams({
     start_date: normalizedStartDate,
@@ -237,7 +293,7 @@ export default async function AdminRecordsPage({
                   className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-black"
                 >
                   <option value="">All Jobs</option>
-                  {jobs?.map((job) => (
+                  {jobs.map((job) => (
                     <option key={job.id} value={job.id}>
                       {job.job_number ? `${job.job_number} - ${job.name}` : job.name}
                       {!job.is_active ? " (Inactive)" : ""}
@@ -299,48 +355,48 @@ export default async function AdminRecordsPage({
 
         <div className="mt-6 flex flex-wrap gap-2">
           <Link
-            href={buildRangeLink(
-              today,
-              today,
-              selectedJobId || undefined,
-              workerSearch || undefined
-            )}
+            href={buildRecordsHref({
+              startDate: today,
+              endDate: today,
+              jobId: selectedJobId || undefined,
+              worker: workerSearch || undefined,
+            })}
             className="admin-action-subtle text-sm"
           >
             Today
           </Link>
 
           <Link
-            href={buildRangeLink(
-              yesterday,
-              yesterday,
-              selectedJobId || undefined,
-              workerSearch || undefined
-            )}
+            href={buildRecordsHref({
+              startDate: yesterday,
+              endDate: yesterday,
+              jobId: selectedJobId || undefined,
+              worker: workerSearch || undefined,
+            })}
             className="admin-action-subtle text-sm"
           >
             Yesterday
           </Link>
 
           <Link
-            href={buildRangeLink(
-              last7Start,
-              today,
-              selectedJobId || undefined,
-              workerSearch || undefined
-            )}
+            href={buildRecordsHref({
+              startDate: last7Start,
+              endDate: today,
+              jobId: selectedJobId || undefined,
+              worker: workerSearch || undefined,
+            })}
             className="admin-action-subtle text-sm"
           >
             Last 7 Days
           </Link>
 
           <Link
-            href={buildRangeLink(
-              last30Start,
-              today,
-              selectedJobId || undefined,
-              workerSearch || undefined
-            )}
+            href={buildRecordsHref({
+              startDate: last30Start,
+              endDate: today,
+              jobId: selectedJobId || undefined,
+              worker: workerSearch || undefined,
+            })}
             className="admin-action-subtle text-sm"
           >
             Last 30 Days
@@ -461,115 +517,157 @@ export default async function AdminRecordsPage({
             No records found for this filter.
           </div>
         ) : (
-          <div className="admin-table-wrap mt-6">
-            <table className="admin-table min-w-full border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200 text-left text-sm text-gray-800">
-                  {isSuperAdmin ? (
-                    <th className="px-4 py-3 font-semibold">Actions</th>
-                  ) : null}
-                  <th className="px-4 py-3 font-semibold">Worker</th>
-                  <th className="px-4 py-3 font-semibold">Job</th>
-                  <th className="px-4 py-3 font-semibold">Date</th>
-                  <th className="px-4 py-3 font-semibold">Injured</th>
-                  <th className="px-4 py-3 font-semibold">Signed In</th>
-                  <th className="px-4 py-3 font-semibold">Signed Out</th>
-                  <th className="px-4 py-3 font-semibold">Signature</th>
-                </tr>
-              </thead>
-              <tbody>
-                {checkins.map((checkin, index) => {
-                  const relatedJob = Array.isArray(checkin.jobs)
-                    ? checkin.jobs[0]
-                    : checkin.jobs;
+          <>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="admin-copy text-sm">
+                Showing <span className="font-medium text-slate-900">{pageStart}</span>-
+                <span className="font-medium text-slate-900">{pageEnd}</span> of{" "}
+                <span className="font-medium text-slate-900">{totalSignins}</span> records.
+              </p>
 
-                  const relatedJobName = relatedJob?.name;
-                  const relatedJobNumber = relatedJob?.job_number;
+              <div className="flex gap-2">
+                <Link
+                  href={buildRecordsHref({
+                    startDate: normalizedStartDate,
+                    endDate: normalizedEndDate,
+                    jobId: selectedJobId || undefined,
+                    worker: workerSearch || undefined,
+                    page: currentPage - 1,
+                  })}
+                  aria-disabled={currentPage <= 1}
+                  className={`admin-action-secondary text-sm ${
+                    currentPage <= 1 ? "pointer-events-none opacity-50" : ""
+                  }`}
+                >
+                  Previous
+                </Link>
+                <Link
+                  href={buildRecordsHref({
+                    startDate: normalizedStartDate,
+                    endDate: normalizedEndDate,
+                    jobId: selectedJobId || undefined,
+                    worker: workerSearch || undefined,
+                    page: currentPage + 1,
+                  })}
+                  aria-disabled={currentPage >= totalPages}
+                  className={`admin-action-secondary text-sm ${
+                    currentPage >= totalPages ? "pointer-events-none opacity-50" : ""
+                  }`}
+                >
+                  Next
+                </Link>
+              </div>
+            </div>
 
-                  const jobName = relatedJobName ?? checkin.job_name ?? "-";
-                  const jobNumber = relatedJobNumber ?? checkin.job_number ?? "";
-                  const jobDisplay = jobNumber
-                    ? `${jobNumber} - ${jobName}`
-                    : jobName;
+            <div className="admin-table-wrap mt-6">
+              <table className="admin-table min-w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left text-sm text-gray-800">
+                    {isSuperAdmin ? (
+                      <th className="px-4 py-3 font-semibold">Actions</th>
+                    ) : null}
+                    <th className="px-4 py-3 font-semibold">Worker</th>
+                    <th className="px-4 py-3 font-semibold">Job</th>
+                    <th className="px-4 py-3 font-semibold">Date</th>
+                    <th className="px-4 py-3 font-semibold">Injured</th>
+                    <th className="px-4 py-3 font-semibold">Signed In</th>
+                    <th className="px-4 py-3 font-semibold">Signed Out</th>
+                    <th className="px-4 py-3 font-semibold">Signature</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {checkins.map((checkin, index) => {
+                    const relatedJob = Array.isArray(checkin.jobs)
+                      ? checkin.jobs[0]
+                      : checkin.jobs;
 
-                  return (
-                    <tr
-                      key={checkin.id}
-                      className={`text-sm ${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50/60"
-                      } hover:bg-gray-50`}
-                    >
-                      {isSuperAdmin ? (
-                        <td className="px-4 py-3 align-top">
-                          <DeleteCheckinButton
-                            checkinId={checkin.id}
-                            action={deleteCheckin}
-                          />
+                    const relatedJobName = relatedJob?.name;
+                    const relatedJobNumber = relatedJob?.job_number;
+                    const jobName = relatedJobName ?? checkin.job_name ?? "-";
+                    const jobNumber = relatedJobNumber ?? checkin.job_number ?? "";
+                    const jobDisplay = jobNumber
+                      ? `${jobNumber} - ${jobName}`
+                      : jobName;
+
+                    return (
+                      <tr
+                        key={checkin.id}
+                        className={`text-sm ${
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50/60"
+                        } hover:bg-gray-50`}
+                      >
+                        {isSuperAdmin ? (
+                          <td className="px-4 py-3 align-top">
+                            <DeleteCheckinButton
+                              checkinId={checkin.id}
+                              action={deleteCheckin}
+                            />
+                          </td>
+                        ) : null}
+
+                        <td className="px-4 py-3 font-medium text-gray-900">
+                          {checkin.worker_name}
                         </td>
-                      ) : null}
 
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {checkin.worker_name}
-                      </td>
+                        <td className="px-4 py-3 text-gray-900">{jobDisplay}</td>
 
-                      <td className="px-4 py-3 text-gray-900">{jobDisplay}</td>
+                        <td className="px-4 py-3 text-gray-900">
+                          {formatYmd(checkin.checkin_date)}
+                        </td>
 
-                      <td className="px-4 py-3 text-gray-900">
-                        {formatYmd(checkin.checkin_date)}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                            checkin.injured
-                              ? "bg-red-100 text-red-700"
-                              : "bg-green-100 text-green-700"
-                          }`}
-                        >
-                          {checkin.injured ? "Yes" : "No"}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3 text-gray-900">
-                        {formatDateTime(checkin.signed_at)}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {checkin.signed_out_at ? (
-                          <div className="space-y-1">
-                            <div className="text-gray-900">
-                              {formatDateTime(checkin.signed_out_at)}
-                            </div>
-                            {checkin.auto_signed_out ? (
-                              <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
-                                Auto-signed out
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
-                            Open
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                              checkin.injured
+                                ? "bg-red-100 text-red-700"
+                                : "bg-green-100 text-green-700"
+                            }`}
+                          >
+                            {checkin.injured ? "Yes" : "No"}
                           </span>
-                        )}
-                      </td>
+                        </td>
 
-                      <td className="px-4 py-3">
-                        {checkin.signature_data ? (
-                          <img
-                            src={checkin.signature_data}
-                            alt={`Signature for ${checkin.worker_name}`}
-                            className="h-12 w-24 rounded border border-gray-200 bg-white object-contain"
-                          />
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <td className="px-4 py-3 text-gray-900">
+                          {formatDateTime(checkin.signed_at)}
+                        </td>
+
+                        <td className="px-4 py-3">
+                          {checkin.signed_out_at ? (
+                            <div className="space-y-1">
+                              <div className="text-gray-900">
+                                {formatDateTime(checkin.signed_out_at)}
+                              </div>
+                              {checkin.auto_signed_out ? (
+                                <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                                  Auto-signed out
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+                              Open
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-3">
+                          {checkin.signature_data ? (
+                            <img
+                              src={checkin.signature_data}
+                              alt={`Signature for ${checkin.worker_name}`}
+                              className="h-12 w-24 rounded border border-gray-200 bg-white object-contain"
+                            />
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

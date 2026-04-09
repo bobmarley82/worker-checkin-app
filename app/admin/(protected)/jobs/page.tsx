@@ -277,7 +277,7 @@ export default async function AdminJobsPage() {
             {activeJobs.length === 0 ? (
               <p className="mt-6 text-gray-800">No active jobs found.</p>
             ) : (
-              <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-6 hidden gap-3 sm:grid-cols-2 lg:grid">
                 {jobsSortedByTodayActivity.map((job) => {
                   const todayCount = todayCountsByJob[job.id] ?? 0;
 

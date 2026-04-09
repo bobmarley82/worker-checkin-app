@@ -3,11 +3,9 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function LoginForm() {
   const supabase = createClient();
-  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,8 +29,7 @@ export default function LoginForm() {
       return;
     }
 
-    router.push("/admin/jobs");
-    router.refresh();
+    window.location.assign("/admin/jobs");
   }
   return (
     <form onSubmit={handleSubmit} className="mt-6 space-y-5">

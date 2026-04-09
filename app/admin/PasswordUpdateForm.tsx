@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type PasswordUpdateFormProps = {
@@ -12,7 +11,6 @@ export default function PasswordUpdateForm({
   mode,
 }: PasswordUpdateFormProps) {
   const supabase = useMemo(() => createClient(), []);
-  const router = useRouter();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -87,8 +85,7 @@ export default function PasswordUpdateForm({
 
     if (mode === "reset") {
       await supabase.auth.signOut();
-      router.push("/admin/login?password_reset=1");
-      router.refresh();
+      window.location.assign("/admin/login?password_reset=1");
       return;
     }
 

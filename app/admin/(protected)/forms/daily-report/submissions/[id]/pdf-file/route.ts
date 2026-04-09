@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { adminCanAccessJob } from "@/lib/adminJobs";
 import { getPdfBrowser } from "@/lib/pdfBrowser";
+import {
+  cacheDailyReportPdf,
+  getCachedDailyReportPdf,
+} from "@/lib/dailyReportPdfCache";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +22,21 @@ function sanitizeFilenamePart(value: string | null | undefined) {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .toLowerCase();
+}
+
+async function buildPdfResponse(
+  file: Blob | Uint8Array<ArrayBufferLike>,
+  fileName: string
+) {
+  const bytes =
+    file instanceof Blob ? new Uint8Array(await file.arrayBuffer()) : file;
+
+  return new Response(Buffer.from(bytes), {
+    headers: {
+      "Content-Disposition": `attachment; filename="${fileName}"`,
+      "Content-Type": "application/pdf",
+    },
+  });
 }
 
 export async function GET(request: Request, { params }: RouteContext) {
@@ -63,6 +82,22 @@ export async function GET(request: Request, { params }: RouteContext) {
     return new Response("Forbidden", { status: 403 });
   }
 
+  const fileStem = [
+    sanitizeFilenamePart(report.job_number || report.job_name),
+    sanitizeFilenamePart(report.report_date),
+    "daily-report",
+  ]
+    .filter(Boolean)
+    .join("-");
+  const fileName = `${fileStem || "daily-report"}.pdf`;
+  const cachePath = `${report.id}.pdf`;
+
+  const cachedPdf = await getCachedDailyReportPdf(cachePath);
+
+  if (cachedPdf) {
+    return buildPdfResponse(cachedPdf, fileName);
+  }
+
   const requestUrl = new URL(request.url);
   const origin =
     process.env.NEXT_PUBLIC_APP_URL?.trim() || requestUrl.origin;
@@ -101,20 +136,9 @@ export async function GET(request: Request, { params }: RouteContext) {
       printBackground: true,
     });
 
-    const fileStem = [
-      sanitizeFilenamePart(report.job_number || report.job_name),
-      sanitizeFilenamePart(report.report_date),
-      "daily-report",
-    ]
-      .filter(Boolean)
-      .join("-");
+    await cacheDailyReportPdf(cachePath, pdfBuffer);
 
-    return new Response(Buffer.from(pdfBuffer), {
-      headers: {
-        "Content-Disposition": `attachment; filename="${fileStem || "daily-report"}.pdf"`,
-        "Content-Type": "application/pdf",
-      },
-    });
+    return buildPdfResponse(pdfBuffer, fileName);
   } finally {
     await page.close();
   }
