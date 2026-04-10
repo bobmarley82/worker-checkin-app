@@ -16,6 +16,7 @@ import {
 import { parseDailyWeatherSnapshot } from "@/lib/weather";
 import PrintDailyReportButton from "./PrintDailyReportButton";
 import { resolveDailyReportPhotos } from "@/lib/dailyReportPhotos";
+import DownloadPdfButton from "../DownloadPdfButton";
 
 type DailyReportPdfPageProps = {
   params: Promise<{
@@ -70,28 +71,39 @@ export default async function DailyReportPdfPage({
       className={
         isDownloadMode
           ? "min-h-screen bg-white"
-          : "min-h-screen bg-slate-100 p-5 print:bg-white print:p-0"
+          : "min-h-screen bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.08),_transparent_32%),linear-gradient(180deg,_#f4f7fb_0%,_#e9eff7_100%)] px-4 py-6 print:bg-white print:p-0 sm:px-6 lg:px-8"
       }
     >
       <div
         className={
           isDownloadMode
             ? "mx-auto max-w-[8.2in]"
-            : "mx-auto max-w-5xl space-y-5 print:max-w-none print:space-y-0"
+            : "mx-auto max-w-6xl space-y-4 print:max-w-none print:space-y-0"
         }
       >
         {isDownloadMode ? (
           <style>{`
-            main.min-h-screen.bg-gray-100 > div.border-b.border-gray-200.bg-white.print\\:hidden {
+            .admin-header,
+            .admin-nav,
+            .admin-brand {
               display: none !important;
             }
 
-            main.min-h-screen.bg-gray-100 > div.app-container.space-y-6.p-6 {
-              max-width: none !important;
-              padding: 0 !important;
+            .admin-shell {
+              background: white !important;
+              min-height: auto !important;
             }
 
-            main.min-h-screen.bg-gray-100 {
+            .admin-page,
+            .app-container.admin-page {
+              max-width: none !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+
+            main,
+            .admin-shell,
+            .admin-page {
               background: white !important;
             }
 
@@ -105,46 +117,48 @@ export default async function DailyReportPdfPage({
         ) : null}
 
         {!isDownloadMode ? (
-          <div className="rounded-3xl bg-white p-5 shadow print:hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">
-                Daily Report PDF View
-              </p>
-              <h1 className="mt-2 text-2xl font-bold text-slate-900">
-                {report.job_number
-                  ? `${report.job_number} - ${report.job_name}`
-                  : report.job_name}
-              </h1>
-              <p className="mt-2 text-sm text-slate-600">
-                Open your browser print dialog and choose Save as PDF for a polished export.
-              </p>
-            </div>
+          <div className="sticky top-4 z-10 print:hidden">
+            <div className="mx-auto flex max-w-[8.75in] flex-col gap-3 rounded-[28px] border border-white/70 bg-white/88 px-4 py-4 shadow-[0_20px_55px_rgba(15,23,42,0.14)] backdrop-blur sm:px-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                    Daily Report Preview
+                  </p>
+                  <h1 className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">
+                    {report.job_number
+                      ? `${report.job_number} - ${report.job_name}`
+                      : report.job_name}
+                  </h1>
+                </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href={`/admin/forms/daily-report/submissions/${report.id}`}
-                className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
-              >
-                Back to Report
-              </Link>
-              <Link
-                href={`/admin/forms/daily-report/submissions/${report.id}/pdf-file`}
-                className="rounded-lg border border-gray-300 px-4 py-2 hover:bg-gray-50"
-              >
-                Download PDF
-              </Link>
-              <PrintDailyReportButton />
+                <div className="flex flex-wrap gap-2.5">
+                  <Link
+                    href={`/admin/forms/daily-report/submissions/${report.id}`}
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                  >
+                    Back to Report
+                  </Link>
+                  <DownloadPdfButton
+                    href={`/admin/forms/daily-report/submissions/${report.id}/pdf-file`}
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                  />
+                  <PrintDailyReportButton />
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-600">
+                Review the document below, then print or download when it looks right.
+              </p>
             </div>
-          </div>
           </div>
         ) : null}
 
         <article
+          data-pdf-ready="true"
           className={
             isDownloadMode
               ? "mx-auto max-w-[8.2in] bg-white p-4"
-              : "mx-auto max-w-[8.2in] rounded-[28px] bg-white p-6 shadow print:max-w-none print:rounded-none print:p-4 print:shadow-none"
+              : "mx-auto max-w-[8.5in] rounded-[32px] border border-white/80 bg-white px-5 py-6 shadow-[0_28px_80px_rgba(15,23,42,0.16)] print:max-w-none print:rounded-none print:border-0 print:p-4 print:shadow-none sm:px-6"
           }
         >
           <header className="border-b border-slate-200 pb-4">

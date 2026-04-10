@@ -5,9 +5,13 @@ import {
   cacheDailyReportPdf,
   getCachedDailyReportPdf,
 } from "@/lib/dailyReportPdfCache";
+import { formatYmd } from "@/lib/datetime";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const MIN_VALID_PDF_BYTES = 15 * 1024;
+const PDF_CACHE_VERSION = "v2";
 
 type RouteContext = {
   params: Promise<{
@@ -35,6 +39,9 @@ async function buildPdfResponse(
     headers: {
       "Content-Disposition": `attachment; filename="${fileName}"`,
       "Content-Type": "application/pdf",
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+      Pragma: "no-cache",
+      Expires: "0",
     },
   });
 }
@@ -42,6 +49,7 @@ async function buildPdfResponse(
 export async function GET(request: Request, { params }: RouteContext) {
   const { id } = await params;
   const supabase = await createClient();
+  const requestUrl = new URL(request.url);
 
   const {
     data: { user },
@@ -63,7 +71,7 @@ export async function GET(request: Request, { params }: RouteContext) {
 
   const { data: report, error } = await supabase
     .from("daily_reports")
-    .select("id, job_id, job_number, job_name, report_date, admin_id")
+    .select("id, job_id, job_number, job_name, report_date, admin_id, admin_name")
     .eq("id", id)
     .single();
 
@@ -90,7 +98,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     .filter(Boolean)
     .join("-");
   const fileName = `${fileStem || "daily-report"}.pdf`;
-  const cachePath = `${report.id}.pdf`;
+  const cachePath = `${report.id}-${PDF_CACHE_VERSION}.pdf`;
 
   const cachedPdf = await getCachedDailyReportPdf(cachePath);
 
@@ -98,10 +106,9 @@ export async function GET(request: Request, { params }: RouteContext) {
     return buildPdfResponse(cachedPdf, fileName);
   }
 
-  const requestUrl = new URL(request.url);
   const origin =
     process.env.NEXT_PUBLIC_APP_URL?.trim() || requestUrl.origin;
-  const previewUrl = `${origin}/admin/forms/daily-report/submissions/${report.id}/pdf?download=1`;
+  const previewUrl = `${origin}/admin/forms/daily-report/submissions/${report.id}/pdf?download=1&v=${PDF_CACHE_VERSION}`;
   const cookieHeader = request.headers.get("cookie") ?? "";
 
   const browser = await getPdfBrowser();
@@ -120,10 +127,36 @@ export async function GET(request: Request, { params }: RouteContext) {
       deviceScaleFactor: 1,
     });
 
-    await page.goto(previewUrl, {
-      waitUntil: "networkidle0",
+    const response = await page.goto(previewUrl, {
+      waitUntil: "domcontentloaded",
     });
+
+    if (!response || !response.ok()) {
+      return new Response("Could not load PDF preview.", { status: 502 });
+    }
+
     await page.emulateMediaType("screen");
+    await page.waitForSelector('[data-pdf-ready="true"]', { timeout: 15000 });
+    await page.waitForFunction(
+      ({ adminName, jobName, reportDateLabel }) => {
+        const text = document.body.innerText || "";
+
+        return (
+          text.includes("Daily Report") &&
+          text.includes(adminName) &&
+          text.includes(jobName) &&
+          text.includes(reportDateLabel)
+        );
+      },
+      {
+        timeout: 15000,
+      },
+      {
+        adminName: report.admin_name ?? report.admin_id,
+        jobName: report.job_name,
+        reportDateLabel: formatYmd(report.report_date),
+      }
+    );
 
     const pdfBuffer = await page.pdf({
       format: "Letter",
@@ -135,6 +168,12 @@ export async function GET(request: Request, { params }: RouteContext) {
       },
       printBackground: true,
     });
+
+    if (pdfBuffer.byteLength < MIN_VALID_PDF_BYTES) {
+      return new Response("Generated PDF looked incomplete. Please try again.", {
+        status: 502,
+      });
+    }
 
     await cacheDailyReportPdf(cachePath, pdfBuffer);
 

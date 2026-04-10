@@ -15,6 +15,7 @@ import {
 import { adminCanAccessJob } from "@/lib/adminJobs";
 import { parseDailyWeatherSnapshot } from "@/lib/weather";
 import { resolveDailyReportPhotos } from "@/lib/dailyReportPhotos";
+import DownloadPdfButton from "./DownloadPdfButton";
 
 type DailyReportDetailPageProps = {
   params: Promise<{
@@ -86,12 +87,10 @@ export default async function DailyReportDetailPage({
                 >
                   PDF View
                 </Link>
-                <Link
+                <DownloadPdfButton
                   href={`/admin/forms/daily-report/submissions/${report.id}/pdf-file`}
                   className="admin-action-secondary text-sm"
-                >
-                  Download PDF
-                </Link>
+                />
             </div>
 
             <div className="admin-card rounded-xl bg-[rgba(247,244,237,0.72)] px-4 py-3 text-sm text-gray-800">
