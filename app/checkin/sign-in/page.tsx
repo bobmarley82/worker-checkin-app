@@ -263,13 +263,14 @@ async function submitSignIn(formData: FormData) {
     });
   }
 
-  await supabase.from("workers").upsert(
-    {
-      name: displayWorkerName,
-      is_active: true,
-    },
-    { onConflict: "name" }
-  );
+  const { error: workerInsertError } = await supabase.from("workers").insert({
+    name: displayWorkerName,
+    is_active: true,
+  });
+
+  if (workerInsertError && workerInsertError.code !== "23505") {
+    console.warn("Unable to save worker name for autocomplete", workerInsertError);
+  }
 
   const params = new URLSearchParams({
     success: "1",

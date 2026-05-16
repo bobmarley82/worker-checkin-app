@@ -52,6 +52,10 @@ Creates or updates the `daily-report-photos` Supabase Storage bucket for report 
 
 Creates or updates the `daily-report-pdfs` Supabase Storage bucket for cached generated PDFs.
 
+## 20260516030545_tighten_workers_public_access.sql
+
+Enables RLS on `workers` and narrows public access to active-name autocomplete and insert-only name memory.
+
 ## Suggested Practice
 
 When adding future migrations:
